@@ -16,9 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import org.jetbrains.compose.resources.painterResource
-
 import soleilracingproject.shared.generated.resources.Res
-import soleilracingproject.shared.generated.resources.compose_multiplatform
+import soleilracingproject.shared.generated.resources.soleil_logo_full
 
 @Composable
 @Preview
@@ -42,7 +41,7 @@ fun App() {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
+                    Image(painterResource(Res.drawable.soleil_logo_full), null)
                     Text("Compose: $greeting")
                 }
             }
