@@ -1,3 +1,5 @@
 package com.example.soleilracingproject.model.analysis
 
-data class Lap()
+data class Lap(
+    val placeholder: Int
+)

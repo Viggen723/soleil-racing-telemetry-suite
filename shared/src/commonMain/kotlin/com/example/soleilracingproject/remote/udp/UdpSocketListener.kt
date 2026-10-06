@@ -10,3 +10,5 @@ interface UdpSocketListener {
 
     fun observePackets(): Flow<ByteArray>
 }
+
+// expect fun createUdpSocketListener(): UdpSocketListener

@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.DatagramPacket
@@ -23,7 +24,7 @@ class AndroidUdpSocketListener : UdpSocketListener {
     private val scope = CoroutineScope(Dispatchers.IO)
 
     override suspend fun beginListening(port: Int) = withContext(Dispatchers.IO) {
-        // Stop any existing socket/job before starting a new session
+        // Stop any ongoing existing socket/job before starting a new session
         stopListening()
 
         try {
@@ -33,7 +34,7 @@ class AndroidUdpSocketListener : UdpSocketListener {
             }
 
             listener = scope.launch {
-                val buffer = ByteArray(2048) // Sized for incoming ESP32 datagrams
+                val buffer = ByteArray(2048) // Sized for ESP32 packwets
 
                 while (socket?.isClosed == false) {
                     try {
@@ -68,3 +69,5 @@ class AndroidUdpSocketListener : UdpSocketListener {
 
     override fun observePackets(): Flow<ByteArray> = _packetFlow.asSharedFlow()
 }
+
+// actual fun createUdpSocketListener(): UdpSocketListener = AndroidUdpSocketListener()

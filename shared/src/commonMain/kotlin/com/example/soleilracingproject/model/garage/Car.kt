@@ -1,3 +1,5 @@
 package com.example.soleilracingproject.model.garage
 
-data class Car()
+data class Car(
+    val placeholder: Int
+)

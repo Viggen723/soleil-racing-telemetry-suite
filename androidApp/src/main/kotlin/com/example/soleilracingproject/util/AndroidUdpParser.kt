@@ -16,7 +16,8 @@ object AndroidUdpParser {
         return try
         {
             TelemetryPoint(
-                buffer.long,
+                buffer.int,
+                buffer.float,
                 buffer.float,
                 buffer.float,
                 buffer.float,

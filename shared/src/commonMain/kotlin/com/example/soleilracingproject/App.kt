@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.soleilracingproject.remote.udp.UdpSocketListener
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import soleilracingproject.shared.generated.resources.Res
@@ -24,6 +25,10 @@ import soleilracingproject.shared.generated.resources.soleil_logo_full
 @Preview
 fun App() {
     MaterialTheme {
+        while (true)
+        {
+
+        }
 
         }
     }
