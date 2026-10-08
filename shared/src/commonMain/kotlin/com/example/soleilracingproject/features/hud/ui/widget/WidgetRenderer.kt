@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.AltitudeWidget
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.SpeedometerWidget
+import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.SpeedGraphWidget
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
 
 @Composable
@@ -27,12 +28,13 @@ fun WidgetRenderer(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.outline
             )
-            return
+            return@Box
         }
 
         when (content) {
             WidgetContent.SPEEDOMETER -> SpeedometerWidget(telemetry)
             WidgetContent.ALTITUDE -> AltitudeWidget(telemetry)
+            WidgetContent.SPEEDGRAPH -> SpeedGraphWidget(telemetry)
         }
     }
 }

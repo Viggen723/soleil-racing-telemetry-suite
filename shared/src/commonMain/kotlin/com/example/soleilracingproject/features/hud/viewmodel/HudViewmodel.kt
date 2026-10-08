@@ -11,6 +11,9 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.random.Random
+import kotlin.math.sin
+import kotlinx.coroutines.delay
+private const val USE_FAKE_DATA = true
 
 class HudViewModel(
     private val udpListener: UdpSocketListener,
@@ -44,7 +47,7 @@ class HudViewModel(
     val widgetLayout: StateFlow<List<WidgetConfig>> = _widgetLayout.asStateFlow()
 
     init {
-        startUdpListening()
+        if (USE_FAKE_DATA) startFakeData() else startUdpListening()
     }
 
     private fun startUdpListening() {
@@ -58,6 +61,24 @@ class HudViewModel(
                 if (parsedPoint != null) {
                     _telemetryState.value = parsedPoint
                 }
+            }
+        }
+    }
+
+    private fun startFakeData() {
+        viewModelScope.launch(Dispatchers.Default) {
+            var t = 0
+            while (true) {
+                _telemetryState.value = TelemetryPoint(
+                    time = t,
+                    accelX = 0f, accelY = 0f, accelZ = 0f,
+                    latitude = 0f, longitude = 0f,
+                    speed = 80f + 50f * sin(t / 15f),   // this wave will be between 30 and 130 on the y axis
+                    qw = 1f, qi = 0f, qj = 0f, qk = 0f,
+                    altitude = 20f + 5f * sin(t / 40f)
+                )
+                t++
+                delay(100)   // wait 0.1 second, then send the next reading
             }
         }
     }

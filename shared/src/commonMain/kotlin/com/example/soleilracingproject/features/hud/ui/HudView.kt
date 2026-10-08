@@ -33,7 +33,6 @@ class HudView {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    modifier = Modifier.height(50.dp),
                     title = {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween)
                         {
