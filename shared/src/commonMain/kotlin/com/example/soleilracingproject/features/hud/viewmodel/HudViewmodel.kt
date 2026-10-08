@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.soleilracingproject.features.hud.ui.widget.*
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
-import com.example.soleilracingproject.remote.udp.UdpSocketListener
+import com.example.soleilracingproject.data.remote.udp.UdpSocketListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.*
@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 import kotlin.math.sin
 import kotlinx.coroutines.delay
-private const val USE_FAKE_DATA = true
+private const val USE_FAKE_DATA = false
 
 class HudViewModel(
     private val udpListener: UdpSocketListener,

@@ -12,7 +12,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.soleilracingproject.features.hud.ui.widget.*
-import com.example.soleilracingproject.remote.udp.UdpSocketListener
+import com.example.soleilracingproject.data.remote.udp.UdpSocketListener
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.jetbrains.compose.resources.painterResource

@@ -1,4 +1,4 @@
-package com.example.soleilracingproject.remote.udp
+package com.example.soleilracingproject.data.remote.udp
 
 import kotlinx.coroutines.flow.Flow
 

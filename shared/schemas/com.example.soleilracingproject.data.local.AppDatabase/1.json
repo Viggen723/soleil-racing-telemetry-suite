@@ -1,0 +1,303 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "1fcfca97d585804a81469f5d40870cb3",
+    "entities": [
+      {
+        "tableName": "telemetry_points",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` TEXT NOT NULL, `lapId` TEXT, `timeStamp` INTEGER NOT NULL, `accelX` REAL NOT NULL, `accelY` REAL NOT NULL, `accelZ` REAL NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `speed` REAL NOT NULL, `qw` REAL NOT NULL, `qi` REAL NOT NULL, `qj` REAL NOT NULL, `qk` REAL NOT NULL, `altitude` REAL NOT NULL, FOREIGN KEY(`lapId`) REFERENCES `laps`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lapId",
+            "columnName": "lapId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "timeStamp",
+            "columnName": "timeStamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accelX",
+            "columnName": "accelX",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accelY",
+            "columnName": "accelY",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accelZ",
+            "columnName": "accelZ",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "speed",
+            "columnName": "speed",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qw",
+            "columnName": "qw",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qi",
+            "columnName": "qi",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qj",
+            "columnName": "qj",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qk",
+            "columnName": "qk",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "altitude",
+            "columnName": "altitude",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_telemetry_points_lapId",
+            "unique": false,
+            "columnNames": [
+              "lapId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_telemetry_points_lapId` ON `${TABLE_NAME}` (`lapId`)"
+          },
+          {
+            "name": "index_telemetry_points_lapId_timeStamp",
+            "unique": false,
+            "columnNames": [
+              "lapId",
+              "timeStamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_telemetry_points_lapId_timeStamp` ON `${TABLE_NAME}` (`lapId`, `timeStamp`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "laps",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "lapId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "laps",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `sessionId` TEXT NOT NULL, `lapNumber` INTEGER NOT NULL, `lapTimeMs` INTEGER NOT NULL, `sector1TimeMs` INTEGER, `sector2TimeMs` INTEGER, `sector3TimeMs` INTEGER, `topSpeedKmh` REAL NOT NULL, `isDnf` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`sessionId`) REFERENCES `sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "sessionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lapNumber",
+            "columnName": "lapNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lapTimeMs",
+            "columnName": "lapTimeMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sector1TimeMs",
+            "columnName": "sector1TimeMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sector2TimeMs",
+            "columnName": "sector2TimeMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sector3TimeMs",
+            "columnName": "sector3TimeMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "topSpeedKmh",
+            "columnName": "topSpeedKmh",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isDnf",
+            "columnName": "isDnf",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_laps_sessionId",
+            "unique": false,
+            "columnNames": [
+              "sessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_laps_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+          },
+          {
+            "name": "index_laps_sessionId_lapNumber",
+            "unique": true,
+            "columnNames": [
+              "sessionId",
+              "lapNumber"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_laps_sessionId_lapNumber` ON `${TABLE_NAME}` (`sessionId`, `lapNumber`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "sessions",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sessionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "sessions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `vehicleId` TEXT NOT NULL, `track` TEXT NOT NULL, `dateEpoch` INTEGER NOT NULL, `rawTelemetryPath` TEXT, `remoteStorageUrl` TEXT, `isSynced` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vehicleId",
+            "columnName": "vehicleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "track",
+            "columnName": "track",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateEpoch",
+            "columnName": "dateEpoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawTelemetryPath",
+            "columnName": "rawTelemetryPath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "remoteStorageUrl",
+            "columnName": "remoteStorageUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isSynced",
+            "columnName": "isSynced",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1fcfca97d585804a81469f5d40870cb3')"
+    ]
+  }
+}

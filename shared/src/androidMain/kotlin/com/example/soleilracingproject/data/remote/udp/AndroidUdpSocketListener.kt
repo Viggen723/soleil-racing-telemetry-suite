@@ -1,5 +1,6 @@
-package com.example.soleilracingproject.remote.udp
+package com.example.soleilracingproject.data.remote.udp
 
+import com.example.soleilracingproject.data.remote.udp.UdpSocketListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
