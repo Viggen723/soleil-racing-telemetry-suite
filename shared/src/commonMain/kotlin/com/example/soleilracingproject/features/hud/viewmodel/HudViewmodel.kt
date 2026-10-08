@@ -26,13 +26,14 @@ class HudViewModel(
     private val _isEditMode = MutableStateFlow(false)
     val isEditMode: StateFlow<Boolean> = _isEditMode.asStateFlow()
 
+    // Sets the intial widget layout
     private val _widgetLayout = MutableStateFlow(
         listOf(
             WidgetConfig(
                 id = "speed_default",
                 content = WidgetContent.SPEEDOMETER,
                 title = "Speedometer",
-                span = WidgetSpan.FULL,
+                span = WidgetSpan.HALF,
                 heightDp = 160
             ),
             WidgetConfig(
@@ -41,6 +42,13 @@ class HudViewModel(
                 title = "Altitude",
                 span = WidgetSpan.HALF,
                 heightDp = 160
+            ),
+            WidgetConfig(
+                id = "speed_graph_default",
+                content = WidgetContent.SPEEDGRAPH,
+                title = "Speed Graph",
+                span = WidgetSpan.FULL,
+                heightDp = 240
             )
         )
     )

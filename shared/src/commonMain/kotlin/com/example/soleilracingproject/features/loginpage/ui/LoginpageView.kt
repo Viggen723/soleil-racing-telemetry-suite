@@ -42,7 +42,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.painterResource
 import soleilracingproject.shared.generated.resources.Res
-import soleilracingproject.shared.generated.resources.soleil_logo_full
+import soleilracingproject.shared.generated.resources.soleil_full
 import soleilracingproject.shared.generated.resources.soleil_trimmed
 import theme.Theme
 
@@ -93,10 +93,10 @@ fun LoginpageView(
                 androidx.compose.animation.AnimatedVisibility(
                     visible = authView == AuthView.LANDING,
                     enter = fadeIn(tween(400)),
-                    exit = fadeOut(tween(400))
+                    exit = fadeOut(tween(4))
                 ) {
                     Image(
-                        painter = painterResource(Res.drawable.soleil_logo_full),
+                        painter = painterResource(Res.drawable.soleil_full),
                         contentDescription = "Soleil Racing Project",
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -104,12 +104,12 @@ fun LoginpageView(
                 androidx.compose.animation.AnimatedVisibility(
                     visible = authView != AuthView.LANDING,
                     enter = fadeIn(tween(400)),
-                    exit = fadeOut(tween(400))
+                    exit = fadeOut(tween(4))
                 ) {
                     Image(
                         painter = painterResource(Res.drawable.soleil_trimmed),
                         contentDescription = "Soleil",
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                     )
                 }
             }
@@ -138,10 +138,7 @@ fun LoginpageView(
                     ) {
                         Button(
                             onClick = { authView = AuthView.LOGIN },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
                         ) {
                             Text("Login", style = MaterialTheme.typography.titleMedium)
                         }

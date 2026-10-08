@@ -17,7 +17,7 @@ import com.example.soleilracingproject.data.remote.udp.AndroidUdpSocketListener
 import com.example.soleilracingproject.util.AndroidUdpParser
 import theme.Theme
 
-val SHOW_LOGIN_PREVIEW = false
+val SHOW_LOGIN_PREVIEW = true
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
