@@ -20,7 +20,7 @@ data class Session(
         get() = laps.size
 
     // A formatted best lap time that uses the get() function
-    val bestTimeFormatted: Duration?
+    val bestTimeFormatted: Long?
         get() = laps.filter {!it.isDnf}.minOfOrNull { it.lapTime }
 }
 

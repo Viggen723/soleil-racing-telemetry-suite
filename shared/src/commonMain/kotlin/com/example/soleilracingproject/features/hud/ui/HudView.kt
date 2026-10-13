@@ -1,6 +1,6 @@
 package com.example.soleilracingproject.features.hud.ui
 
-import androidx.compose.foundation.Image
+import HudViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
@@ -11,80 +11,99 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.soleilracingproject.features.SharedFeatureUi.SoleilTopBar
 import com.example.soleilracingproject.features.hud.ui.widget.*
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
-import org.jetbrains.compose.resources.painterResource
-import soleilracingproject.shared.generated.resources.Res
-import soleilracingproject.shared.generated.resources.soleil_trimmed
 
 @Composable
 fun HudView(
     viewModel: HudViewModel,
+    onUpdateTopBarActions: ((@Composable RowScope.() -> Unit)?) -> Unit = {},
+    onFocusModeChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val telemetry by viewModel.telemetryState.collectAsStateWithLifecycle()
     val widgets by viewModel.widgetLayout.collectAsStateWithLifecycle()
     val isEditMode by viewModel.isEditMode.collectAsStateWithLifecycle()
+    val isRecording by viewModel.isRecording.collectAsStateWithLifecycle()
+
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    // Focus mode!
+    val isFocusMode = (telemetry?.speed ?: 0f) > 10f
+    LaunchedEffect(isFocusMode) {
+        onFocusModeChange(isFocusMode)
+    }
+
+    // Set top bar actions only when isEditMode changes, avoiding parent state mutations on telemetry recompositions
+    LaunchedEffect(isEditMode) {
+        onUpdateTopBarActions {
+            if (isEditMode) {
+                Button(
+                    onClick = { showAddDialog = true },
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Text("+ Add Widget")
+                }
+            }
+            IconButton(onClick = viewModel::toggleEditMode) {
+                Text(if (isEditMode) "Done" else "Edit")
+            }
+        }
+    }
+
+    // Clear top bar actions only when leaving HudView navigation screen
+    DisposableEffect(Unit) {
+        onDispose {
+            onUpdateTopBarActions(null)
+        }
+    }
 
     HudContent(
         telemetry = telemetry,
         widgets = widgets,
         isEditMode = isEditMode,
-        onToggleEditMode = viewModel::toggleEditMode,
-        onAddWidget = viewModel::addWidget,
+        isRecording = isRecording,
+        showAddDialog = showAddDialog,
+        onDismissAddDialog = { showAddDialog = false },
+        onAddWidgetSelected = { content ->
+            viewModel.addWidget(content)
+            showAddDialog = false
+        },
         onMoveWidget = viewModel::moveWidget,
         onToggleWidgetSpan = viewModel::toggleWidgetSpan,
         onAdjustWidgetHeight = viewModel::adjustWidgetHeight,
         onRemoveWidget = viewModel::removeWidget,
+        onStartRecording = viewModel::startRecording,
+        onStopRecording = viewModel::stopRecording,
         modifier = modifier
     )
 }
-// Had to separate the content to make it passable through the NavHost
+
+// Separated content composable for modular layout & previews
 @Composable
 fun HudContent(
     telemetry: TelemetryPoint?,
     widgets: List<WidgetConfig>,
     isEditMode: Boolean,
-    onToggleEditMode: () -> Unit,
-    onAddWidget: (WidgetContent) -> Unit,
-    onMoveWidget: (index: Int, offset: Int) -> Unit,
-    onToggleWidgetSpan: (id: String) -> Unit,
-    onAdjustWidgetHeight: (id: String, delta: Int) -> Unit,
-    onRemoveWidget: (id: String) -> Unit,
+    isRecording: Boolean,
+    showAddDialog: Boolean = false,
+    onDismissAddDialog: () -> Unit = {},
+    onAddWidgetSelected: (WidgetContent) -> Unit = {},
+    onMoveWidget: (index: Int, offset: Int) -> Unit = { _, _ -> },
+    onToggleWidgetSpan: (id: String) -> Unit = {},
+    onAdjustWidgetHeight: (id: String, delta: Int) -> Unit = { _, _ -> },
+    onRemoveWidget: (id: String) -> Unit = {},
+    onStartRecording: () -> Unit = {},
+    onStopRecording: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var showAddDialog by remember { mutableStateOf(false) }
-
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { SoleilTopBar() },
-                actions = {
-                    if (isEditMode) {
-                        Button(
-                            onClick = { showAddDialog = true },
-                            modifier = Modifier.padding(end = 8.dp)
-                        ) {
-                            Text("+ Add Widget")
-                        }
-                    }
-                    IconButton(onClick = onToggleEditMode) {
-                        Text(if (isEditMode) "Done" else "Edit")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
+    Box(modifier = modifier.fillMaxSize()) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier = Modifier.fillMaxSize()
         ) {
             itemsIndexed(
                 items = widgets,
@@ -99,7 +118,10 @@ fun HudContent(
                     Box(modifier = Modifier.fillMaxSize()) {
                         WidgetRenderer(
                             content = widget.content,
-                            telemetry = telemetry
+                            telemetry = telemetry,
+                            isRecording = isRecording,
+                            onStartRecording = onStartRecording,
+                            onStopRecording = onStopRecording
                         )
 
                         if (isEditMode) {
@@ -122,16 +144,12 @@ fun HudContent(
 
         if (showAddDialog) {
             AddWidgetDialog(
-                onDismiss = { showAddDialog = false },
-                onWidgetSelected = { content ->
-                    onAddWidget(content)
-                    showAddDialog = false
-                }
+                onDismiss = onDismissAddDialog,
+                onWidgetSelected = onAddWidgetSelected
             )
         }
     }
 }
-
 @Composable
 private fun WidgetControlOverlay(
     widget: WidgetConfig,
@@ -225,12 +243,15 @@ fun HudContentPreview() {
             telemetry = null,
             widgets = emptyList(),
             isEditMode = true,
-            onToggleEditMode = {},
-            onAddWidget = {},
+            isRecording = false,
+            onDismissAddDialog = {},
+            onAddWidgetSelected = {},
             onMoveWidget = { _, _ -> },
             onToggleWidgetSpan = {},
             onAdjustWidgetHeight = { _, _ -> },
-            onRemoveWidget = {}
+            onRemoveWidget = {},
+            onStartRecording = {},
+            onStopRecording = {}
         )
     }
 }

@@ -10,15 +10,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation.compose.rememberNavController
-import com.example.soleilracingproject.di.appModule
-import com.example.soleilracingproject.di.sharedModule
-import com.example.soleilracingproject.features.NavHost.AppNavigationBar
-import com.example.soleilracingproject.features.NavHost.MainNavHost
-import com.example.soleilracingproject.features.NavHost.Route
+import com.example.soleilracingproject.features.navhost.AppNavigationBar
 import theme.Theme
-import org.koin.android.ext.koin.androidContext
-import org.koin.core.context.startKoin
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,8 +23,6 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    val navController = rememberNavController()
-
                     AppNavigationBar(modifier = Modifier)
                 }
             }

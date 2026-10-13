@@ -48,10 +48,10 @@ private fun segmentColors(speeds: List<Float>): List<Color> =
             SteadyColor   // if we don't have enough history yet
         } else {
             val change = speeds[i] - speeds[i - LOOKBACK]
-            val rate = change * SAMPLES_PER_SECOND / LOOKBACK   // km/h gained or lost per second
+            val rate = change * SAMPLES_PER_SECOND / LOOKBACK    // km/h gained or lost per second
             val strength = ((abs(rate) - DEAD_ZONE) / (HARD_CHANGE - DEAD_ZONE)).coerceIn(0f, 1f)
             when {
-                rate > DEAD_ZONE -> lerp(AccelLight, AccelDark, strength)   // speeding up: green
+                rate > DEAD_ZONE -> lerp(AccelLight, AccelDark, strength)    // speeding up: green
                 rate < -DEAD_ZONE -> lerp(BrakeLight, BrakeDark, strength)  // braking: pink to red
                 else -> SteadyColor
             }
@@ -59,20 +59,22 @@ private fun segmentColors(speeds: List<Float>): List<Color> =
     }
 
 @Composable
-fun SpeedGraphWidget(telemetry: TelemetryPoint) {
+fun SpeedGraphWidget(telemetry: TelemetryPoint?) {
     // The widget's notebook of past speeds
     val history = remember { mutableStateListOf<Float>() }
 
-    // This runs every time a new telemetry reading arrives
+    // This runs safely every time a new telemetry reading arrives
     LaunchedEffect(telemetry) {
-        history.add(telemetry.speed)
-        if (history.size > 200) {
-            history.removeAt(0)
+        telemetry?.let {
+            history.add(it.speed)
+            if (history.size > 200) {
+                history.removeAt(0)
+            }
         }
     }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
@@ -81,12 +83,12 @@ fun SpeedGraphWidget(telemetry: TelemetryPoint) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "SPEED · LAST 20 SECONDS",
+                text = "SPEED",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline
             )
             Text(
-                text = "NOW ${telemetry.speed.formatOneDecimal()} km/h",
+                text = "NOW ${telemetry?.speed?.formatOneDecimal() ?: "0.0"} km/h",
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -109,9 +111,9 @@ fun SpeedGraphWidget(telemetry: TelemetryPoint) {
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            LegendDot(AccelDark, "Speeding up")
-            LegendDot(BrakeDark, "Braking")
-            LegendDot(SteadyColor, "Steady")
+            LegendDot(AccelDark, "Accel")
+            LegendDot(BrakeDark, "Decel")
+            LegendDot(SteadyColor, "Coast")
         }
     }
 }

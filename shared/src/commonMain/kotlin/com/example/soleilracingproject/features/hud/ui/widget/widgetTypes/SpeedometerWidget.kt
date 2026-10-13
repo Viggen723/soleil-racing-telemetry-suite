@@ -2,18 +2,21 @@ package com.example.soleilracingproject.features.hud.ui.widget.widgetTypes
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
 import com.example.soleilracingproject.util.tools.ConversionTools.formatOneDecimal
 
 @Composable
-fun SpeedometerWidget(telemetry: TelemetryPoint) {
+fun SpeedometerWidget(telemetry: TelemetryPoint?) {
     Column(
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -23,7 +26,7 @@ fun SpeedometerWidget(telemetry: TelemetryPoint) {
             color = MaterialTheme.colorScheme.secondary
         )
         Text(
-            text = telemetry.speed.formatOneDecimal(),
+            text = telemetry?.speed?.formatOneDecimal() ?: "0.0",
             style = MaterialTheme.typography.displayLarge.copy(
                 fontSize = 48.sp,
                 fontWeight = FontWeight.Bold

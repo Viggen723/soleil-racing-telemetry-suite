@@ -19,7 +19,7 @@ interface SessionDao {
     @Update
     suspend fun updateSession(session: SessionEntity)
 
-    // Gets a single session where it is loaded on the the screen with the laps that were saved with it
+    // Gets a single session where it is loaded on the screen with the laps that were saved with it
     @Transaction
     @Query("SELECT * FROM sessions WHERE id = :sessionId")
     fun getSessionWithLaps(sessionId: String): Flow<SessionWithLaps?>

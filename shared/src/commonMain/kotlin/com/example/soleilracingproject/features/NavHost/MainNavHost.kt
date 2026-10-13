@@ -1,19 +1,23 @@
 package com.example.soleilracingproject.features.NavHost
 
+import HudViewModel
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.soleilracingproject.features.analysis.ui.AnalysisView
 import com.example.soleilracingproject.features.hud.ui.HudView
-import com.example.soleilracingproject.features.hud.ui.HudViewModel
 import org.koin.compose.koinInject
 
 @Composable
 fun MainNavHost(
     navHostController: NavHostController,
     startDestination: Route = Route.Hud,
+    onUpdateTopBarActions: ((@Composable RowScope.() -> Unit)?) -> Unit = {},
+    onFocusModeChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -23,11 +27,19 @@ fun MainNavHost(
     ) {
         composable<Route.Hud> {
             val hudViewModel: HudViewModel = koinInject()
-            HudView(viewModel = hudViewModel)
+            HudView(
+                viewModel = hudViewModel,
+                onUpdateTopBarActions = onUpdateTopBarActions,
+                onFocusModeChange = onFocusModeChange
+            )
         }
 
         composable<Route.Analysis> {
-            AnalysisView()
+            val analysisViewModel: com.example.soleilracingproject.features.analysis.viewmodel.AnalysisViewModel = koinInject()
+            LaunchedEffect(Unit) {
+                onUpdateTopBarActions(null)
+            }
+            AnalysisView(viewModel = analysisViewModel)
         }
     }
 }

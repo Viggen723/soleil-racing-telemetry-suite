@@ -21,6 +21,20 @@ object ConversionTools {
         return rounded.toString()
     }
 
+    fun Long.formatLapTime(): String {
+        if (this <= 0) return "--:--.---"
+        val minutes = this / 60000
+        val seconds = (this % 60000) / 1000
+        val millis = this % 1000
+        val secStr = if (seconds < 10) "0$seconds" else "$seconds"
+        val msStr = when {
+            millis < 10 -> "00$millis"
+            millis < 100 -> "0$millis"
+            else -> "$millis"
+        }
+        return "$minutes:$secStr.$msStr"
+    }
+
     // Assumes a unit quaternion; returns roll, pitch, and yaw in degrees.
     fun quaternionToEuler(
         x: Double,

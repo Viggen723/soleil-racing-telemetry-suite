@@ -1,23 +1,27 @@
-// commonMain/kotlin/com/example/soleilracingproject/features/hud/ui/HudViewModel.kt
-package com.example.soleilracingproject.features.hud.ui
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.soleilracingproject.data.local.dao.LapDao
+import com.example.soleilracingproject.data.local.dao.SessionDao
+import com.example.soleilracingproject.data.mapper.toEntity
 import com.example.soleilracingproject.features.hud.ui.widget.*
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
 import com.example.soleilracingproject.data.remote.udp.UdpSocketListener
+import com.example.soleilracingproject.model.analysis.Lap
+import com.example.soleilracingproject.model.analysis.Session
+import com.example.soleilracingproject.util.tools.lapLogic.LapLogic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.random.Random
-import kotlin.math.sin
-import kotlinx.coroutines.delay
-private const val USE_FAKE_DATA = false
+
 
 class HudViewModel(
     private val udpListener: UdpSocketListener,
-    private val parseUdpData: (ByteArray) -> TelemetryPoint?
+    private val parseUdpData: (ByteArray) -> TelemetryPoint?,
+    private val sessionDao: SessionDao? = null,
+    private val lapDao: LapDao? = null
+
 ) : ViewModel() {
 
     private val _telemetryState = MutableStateFlow<TelemetryPoint?>(null)
@@ -26,7 +30,14 @@ class HudViewModel(
     private val _isEditMode = MutableStateFlow(false)
     val isEditMode: StateFlow<Boolean> = _isEditMode.asStateFlow()
 
-    // Sets the intial widget layout
+    private val _isRecording = MutableStateFlow(false)
+    val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
+
+    private val activeLapBuffer = mutableListOf<TelemetryPoint>()
+    private val completedLaps = mutableListOf<Lap>()
+    private var sessionStartTime: Long = 0L
+    private var currentSessionId: String = ""
+    
     private val _widgetLayout = MutableStateFlow(
         listOf(
             WidgetConfig(
@@ -49,13 +60,20 @@ class HudViewModel(
                 title = "Speed Graph",
                 span = WidgetSpan.FULL,
                 heightDp = 240
+            ),
+            WidgetConfig(
+                id = "recording_button_default",
+                content = WidgetContent.RECORDING_BUTTON,
+                title = "Recording Button",
+                span = WidgetSpan.HALF,
+                heightDp = 120
             )
         )
     )
     val widgetLayout: StateFlow<List<WidgetConfig>> = _widgetLayout.asStateFlow()
 
     init {
-        if (USE_FAKE_DATA) startFakeData() else startUdpListening()
+        startUdpListening()
     }
 
     private fun startUdpListening() {
@@ -67,29 +85,75 @@ class HudViewModel(
             udpListener.observePackets().collect { rawBytes ->
                 val parsedPoint = parseUdpData(rawBytes)
                 if (parsedPoint != null) {
-                    _telemetryState.value = parsedPoint
+                    processTelemetryPoint(parsedPoint)
                 }
             }
         }
     }
 
-    private fun startFakeData() {
-        viewModelScope.launch(Dispatchers.Default) {
-            var t = 0
-            while (true) {
-                _telemetryState.value = TelemetryPoint(
-                    time = t,
-                    accelX = 0f, accelY = 0f, accelZ = 0f,
-                    latitude = 0f, longitude = 0f,
-                    speed = 80f + 50f * sin(t / 15f),   // this wave will be between 30 and 130 on the y axis
-                    qw = 1f, qi = 0f, qj = 0f, qk = 0f,
-                    altitude = 20f + 5f * sin(t / 40f)
-                )
-                t++
-                delay(100)   // wait 0.1 second, then send the next reading
+    private fun processTelemetryPoint(point: TelemetryPoint) {
+        _telemetryState.value = point
+
+        if (_isRecording.value) {
+            activeLapBuffer.add(point)
+
+            if (hasCrossedGpsGate(point)) {
+                finalizeCurrentLap()
             }
         }
     }
+
+    fun startRecording() {
+        if (_isRecording.value) return
+
+        activeLapBuffer.clear()
+        completedLaps.clear()
+        sessionStartTime = kotlin.time.Clock.System.now().toEpochMilliseconds()
+        currentSessionId = "session_${Random.nextLong().toString(16)}"
+        _isRecording.value = true
+    }
+
+    fun stopRecording() {
+        if (!_isRecording.value) return
+        _isRecording.value = false
+
+        // Flush any remaining active buffer points as the final lap
+        if (activeLapBuffer.isNotEmpty()) {
+            completedLaps.add(
+                LapLogic.buildLap(currentSessionId, completedLaps.size + 1, activeLapBuffer.toList())
+            )
+            activeLapBuffer.clear()
+        }
+
+        val session = Session(
+            id = currentSessionId,
+            title = "Track Session",
+            vehicleId = "2022 Kawasaki ZX-6R",
+            track = "Lime Rock Park",
+            dateEpoch = sessionStartTime,
+            laps = completedLaps.toList()
+        )
+
+        // Persist session and laps to Room Database
+        viewModelScope.launch(Dispatchers.IO) {
+            sessionDao?.insertSession(session.toEntity())
+            lapDao?.insertLaps(completedLaps.map { it.toEntity() })
+        }
+    }
+
+    private fun hasCrossedGpsGate(point: TelemetryPoint): Boolean {
+        return LapLogic.hasCrossedGpsGate(point)
+    }
+
+    private fun finalizeCurrentLap() {
+        if (activeLapBuffer.isEmpty()) return
+
+        val newLap = LapLogic.buildLap(currentSessionId, completedLaps.size + 1, activeLapBuffer.toList())
+        completedLaps.add(newLap)
+        activeLapBuffer.clear()
+    }
+
+    // Widget Modification functions
 
     fun toggleEditMode() {
         _isEditMode.value = !_isEditMode.value
@@ -128,7 +192,6 @@ class HudViewModel(
     }
 
     fun addWidget(content: WidgetContent) {
-        // RandomID generated with Kotlin's random
         val randomId = "widget_${Random.nextLong().toString(16)}"
         val newWidget = WidgetConfig(
             id = randomId,

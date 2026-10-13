@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -15,7 +14,6 @@ import com.example.soleilracingproject.model.analysis.Lap
 import com.example.soleilracingproject.model.telemetry.LatLng
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
 import com.example.soleilracingproject.util.tools.ConversionTools.normalizeCoordinates
-import kotlin.collections.emptyList
 
 @Composable
 fun AnalysisMapWidget(modifier: Modifier, lap: Lap)

@@ -2,17 +2,20 @@ package com.example.soleilracingproject.features.hud.ui.widget.widgetTypes
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
 import kotlin.math.roundToInt
 
 @Composable
-fun AltitudeWidget(telemetry: TelemetryPoint) {
+fun AltitudeWidget(telemetry: TelemetryPoint?) {
     Column(
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -22,7 +25,7 @@ fun AltitudeWidget(telemetry: TelemetryPoint) {
             color = MaterialTheme.colorScheme.secondary
         )
         Text(
-            text = "${telemetry.altitude.roundToInt()}",
+            text = "${telemetry?.altitude?.roundToInt() ?: 0}",
             style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onSurface
         )
