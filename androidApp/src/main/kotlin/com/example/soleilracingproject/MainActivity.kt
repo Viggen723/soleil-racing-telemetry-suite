@@ -10,39 +10,29 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.soleilracingproject.features.hud.ui.HudView
-import com.example.soleilracingproject.features.hud.ui.HudViewModel
-import com.example.soleilracingproject.features.loginpage.ui.LoginpageView
-import com.example.soleilracingproject.data.remote.udp.AndroidUdpSocketListener
-import com.example.soleilracingproject.util.AndroidUdpParser
+import androidx.navigation.compose.rememberNavController
+import com.example.soleilracingproject.di.appModule
+import com.example.soleilracingproject.di.sharedModule
+import com.example.soleilracingproject.features.NavHost.AppNavigationBar
+import com.example.soleilracingproject.features.NavHost.MainNavHost
+import com.example.soleilracingproject.features.NavHost.Route
 import theme.Theme
-
-val SHOW_LOGIN_PREVIEW = true
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.context.startKoin
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        val udp = AndroidUdpSocketListener()
-        val viewModel = HudViewModel(
-            udpListener = udp,
-            parseUdpData = AndroidUdpParser::parseUdpData
-        )
-
-        val hudView = HudView()
-
         setContent {
             Theme.AppTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
                 ) {
-                    if (SHOW_LOGIN_PREVIEW) {
-                        LoginpageView()
-                    } else {
-                        hudView.Content(viewModel = viewModel)
-                    }
+                    val navController = rememberNavController()
+
+                    AppNavigationBar(modifier = Modifier)
                 }
             }
         }
@@ -52,5 +42,12 @@ class MainActivity : ComponentActivity() {
 @Preview
 @Composable
 fun AppAndroidPreview() {
-    App()
+    Theme.AppTheme {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            AppNavigationBar(modifier = Modifier)
+        }
+    }
 }

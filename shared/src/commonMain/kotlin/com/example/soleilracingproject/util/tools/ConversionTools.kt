@@ -1,6 +1,8 @@
 package com.example.soleilracingproject.util.tools
 
+import androidx.compose.ui.geometry.Offset
 import com.example.soleilracingproject.model.telemetry.EulerAngles
+import com.example.soleilracingproject.model.telemetry.LatLng
 import kotlin.math.roundToInt
 import kotlin.math.atan2
 import kotlin.math.asin
@@ -35,5 +37,38 @@ object ConversionTools {
             pitch = pitch * radiansToDegrees,
             yaw = yaw * radiansToDegrees
         )
+    }
+
+    // Normalize coordinates for drawing on to the Canvas Composable relative to size
+    fun normalizeCoordinates(
+        coords: List<LatLng?>,
+        canvasWidth: Float,
+        canvasHeight: Float,
+        padding: Float = 40f
+    ): List<Offset>
+    {
+        if (coords.size < 2 ) return emptyList()
+
+        // Create find the bounds of the graph
+        val minLat = coords.minOf { it!!.latitude }
+        val maxLat = coords.maxOf { it!!.latitude }
+        val minLng = coords.minOf { it!!.longitude }
+        val maxLng = coords.maxOf { it!!.longitude }
+
+        //Creating the range and ensuring there is no division by 0 with coerceAtLeast
+        val rangeLat = (maxLat - minLat).coerceAtLeast(1e-6.toFloat())
+        val rangeLng = (maxLng - minLng).coerceAtLeast(1e-6.toFloat())
+
+        val graphWidth = canvasWidth - (2 * padding)
+        val graphHeight = canvasHeight - (2 * padding)
+
+        val result: List<Offset> = coords.map { coord ->
+            Offset(
+                x = padding + ((coord!!.longitude - minLng) / rangeLng) * graphWidth,
+                y = canvasHeight - padding - ((coord!!.latitude - minLat) / rangeLat) * graphHeight
+            )}
+
+        return result
+
     }
 }

@@ -13,7 +13,11 @@ kotlin {
 dependencies {
     implementation(project(":shared"))
 
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
+
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.navigation.compose)
 
     implementation(libs.compose.uiToolingPreview)
     implementation(libs.androidx.material3)

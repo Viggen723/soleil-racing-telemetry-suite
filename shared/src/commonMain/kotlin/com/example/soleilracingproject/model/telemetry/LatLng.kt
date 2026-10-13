@@ -1,6 +1,6 @@
 package com.example.soleilracingproject.model.telemetry
 
 data class LatLng(
-    val latitude: Double,
-    val longitude: Double
+    val latitude: Float,
+    val longitude: Float
 )

@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 object Theme {
     private val LightColorScheme = lightColorScheme(
         primary = soleil_red,
+        onPrimary = white,
         secondary = white
     )
 
