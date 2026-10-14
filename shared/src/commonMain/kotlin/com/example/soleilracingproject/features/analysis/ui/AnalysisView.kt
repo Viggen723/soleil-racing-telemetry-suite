@@ -10,23 +10,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.soleilracingproject.features.analysis.viewmodel.AnalysisViewModel
-import com.example.soleilracingproject.model.analysis.Lap
 import com.example.soleilracingproject.model.analysis.Session
-import com.example.soleilracingproject.util.tools.ConversionTools.formatLapTime
-import com.example.soleilracingproject.util.tools.ConversionTools.formatOneDecimal
 
 @Composable
 fun AnalysisView(
@@ -34,7 +35,9 @@ fun AnalysisView(
     modifier: Modifier = Modifier
 ) {
     val sessions by viewModel.sessionsState.collectAsStateWithLifecycle()
-    AnalysisContent(sessions = sessions, modifier = modifier)
+    val activeSessions = sessions
+
+    AnalysisContent(sessions = activeSessions, modifier = modifier)
 }
 
 @Composable
@@ -42,13 +45,12 @@ fun AnalysisContent(
     sessions: List<Session>,
     modifier: Modifier = Modifier
 ) {
-    val sampleLap = sessions.firstOrNull()?.laps?.firstOrNull() ?: Lap(
-        id = "sample_lap_1",
-        sessionId = "session_1",
-        lapNumber = 1,
-        lapTime = 84310L, // 1:24.310
-        topSpeedKmh = 214.5f
-    )
+    val displayLap = sessions.flatMap { it.laps }
+        .firstOrNull { it.telemetryPoints.size >= 2 }
+
+    // This allows the map and the graph to share the exact same selected point
+    var globalSelectedIndex by remember { mutableStateOf<Int?>(null) }
+    var currentMetric by remember { mutableStateOf(TelemetryMetric.SPEED) }
 
     Column(
         modifier = modifier
@@ -57,23 +59,7 @@ fun AnalysisContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Dashboard Title
-        Text(
-            text = "Track Analysis & Map Overlay",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        // Track Map Overlay Widget
-        AnalysisMapWidget(
-            lap = sampleLap,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(340.dp)
-        )
-
-        // Session Overview Summary Card
+        // Session Summary Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -97,29 +83,67 @@ fun AnalysisContent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    StatSummaryItem("Recorded Sessions", "${sessions.size}")
-                    StatSummaryItem("Best Lap", sampleLap.lapTime.formatLapTime())
-                    StatSummaryItem("Top Speed", "${sampleLap.topSpeedKmh.formatOneDecimal()} km/h")
+                    SessionStatItem("Recorded Sessions", "${sessions.size}")
+                    SessionStatItem("Displayed Lap", "1:24.310")
+                    SessionStatItem("Top Speed", "${displayLap?.topSpeedKmh ?: "N/A"} km/h")
                 }
             }
         }
-    }
-}
 
-@Composable
-private fun StatSummaryItem(label: String, value: String) {
-    Column {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 10.sp
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        // The Map Widget
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            )
+        ) {
+            AnalysisMapWidget(
+                lap = displayLap,
+                selectedIndex = globalSelectedIndex,
+                onPointSelected = { globalSelectedIndex = it },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // 2. Metric Selector Buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            TelemetryMetric.entries.forEach { metric ->
+                Button(
+                    onClick = { currentMetric = metric },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (currentMetric == metric) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (currentMetric == metric) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(metric.title)
+                }
+            }
+        }
+
+        // Graph Widget
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            )
+        ) {
+            AnalysisGraphWidget(
+                lap = displayLap,
+                metric = currentMetric,
+                selectedIndex = globalSelectedIndex,
+                onPointSelected = { globalSelectedIndex = it },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }

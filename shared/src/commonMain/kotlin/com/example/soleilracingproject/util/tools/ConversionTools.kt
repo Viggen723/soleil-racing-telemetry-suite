@@ -7,6 +7,7 @@ import kotlin.math.roundToInt
 import kotlin.math.atan2
 import kotlin.math.asin
 import kotlin.math.PI
+import kotlin.math.cos
 
 object ConversionTools {
 
@@ -53,36 +54,55 @@ object ConversionTools {
         )
     }
 
-    // Normalize coordinates for drawing on to the Canvas Composable relative to size
+// Normalize coordinates for drawing on to the Canvas Composable relative to size
     fun normalizeCoordinates(
         coords: List<LatLng?>,
         canvasWidth: Float,
         canvasHeight: Float,
         padding: Float = 40f
-    ): List<Offset>
-    {
-        if (coords.size < 2 ) return emptyList()
+    ): List<Offset> {
+        if (canvasWidth <= 0f || canvasHeight <= 0f) return emptyList()
 
-        // Create find the bounds of the graph
-        val minLat = coords.minOf { it!!.latitude }
-        val maxLat = coords.maxOf { it!!.latitude }
-        val minLng = coords.minOf { it!!.longitude }
-        val maxLng = coords.maxOf { it!!.longitude }
+        val validCoords = coords.filterNotNull()
+        if (validCoords.size < 2) return emptyList()
 
-        //Creating the range and ensuring there is no division by 0 with coerceAtLeast
-        val rangeLat = (maxLat - minLat).coerceAtLeast(1e-6.toFloat())
-        val rangeLng = (maxLng - minLng).coerceAtLeast(1e-6.toFloat())
+        val minLat = validCoords.minOf { it.latitude }
+        val maxLat = validCoords.maxOf { it.latitude }
+        val minLng = validCoords.minOf { it.longitude }
+        val maxLng = validCoords.maxOf { it.longitude }
 
-        val graphWidth = canvasWidth - (2 * padding)
-        val graphHeight = canvasHeight - (2 * padding)
+        // Calculate real-world aspect ratio correction (KMP Safe)
+        // Convert average latitude to radians: degrees * (PI / 180)
+        val avgLat = (minLat + maxLat) / 2f
+        val avgLatRad = (avgLat * (PI / 180.0)).toFloat()
+        val lngCorrection = cos(avgLatRad)
 
-        val result: List<Offset> = coords.map { coord ->
+        val rangeLat = (maxLat - minLat).coerceAtLeast(1e-6f)
+        val rangeLng = ((maxLng - minLng) * lngCorrection).coerceAtLeast(1e-6f)
+
+        val availableWidth = (canvasWidth - (2 * padding)).coerceAtLeast(1f)
+        val availableHeight = (canvasHeight - (2 * padding)).coerceAtLeast(1f)
+
+        // Uniform scaling: find which dimension is the bottleneck
+        val scaleX = availableWidth / rangeLng
+        val scaleY = availableHeight / rangeLat
+        val uniformScale = minOf(scaleX, scaleY)
+
+        // Calculate offsets to center the track in the canvas
+        val trackPixelWidth = rangeLng * uniformScale
+        val trackPixelHeight = rangeLat * uniformScale
+
+        val offsetX = padding + (availableWidth - trackPixelWidth) / 2f
+        val offsetY = padding + (availableHeight - trackPixelHeight) / 2f
+
+        return validCoords.map { coord ->
+            val correctedLng = (coord.longitude - minLng) * lngCorrection
+
             Offset(
-                x = padding + ((coord!!.longitude - minLng) / rangeLng) * graphWidth,
-                y = canvasHeight - padding - ((coord!!.latitude - minLat) / rangeLat) * graphHeight
-            )}
-
-        return result
-
+                x = offsetX + (correctedLng * uniformScale),
+                y = canvasHeight - offsetY - ((coord.latitude - minLat) * uniformScale)
+            )
+        }
     }
 }
+
