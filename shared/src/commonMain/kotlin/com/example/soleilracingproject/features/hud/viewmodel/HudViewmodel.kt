@@ -230,6 +230,10 @@ class HudViewModel(
     }
 
     fun addWidget(content: WidgetContent) {
+        // If this widget is already on the screen, stop here
+        val alreadyThere = _widgetLayout.value.any { it.content == content }
+        if (alreadyThere) return
+
         val randomId = "widget_${Random.nextLong().toString(16)}"
         val newWidget = WidgetConfig(
             id = randomId,

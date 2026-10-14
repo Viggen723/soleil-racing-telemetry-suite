@@ -144,6 +144,7 @@ fun HudContent(
 
         if (showAddDialog) {
             AddWidgetDialog(
+                alreadyAdded = widgets.map { it.content },
                 onDismiss = onDismissAddDialog,
                 onWidgetSelected = onAddWidgetSelected
             )
@@ -210,6 +211,7 @@ private fun SmallButton(
 
 @Composable
 private fun AddWidgetDialog(
+    alreadyAdded: List<WidgetContent> = emptyList(),
     onDismiss: () -> Unit,
     onWidgetSelected: (WidgetContent) -> Unit
 ) {
@@ -219,11 +221,13 @@ private fun AddWidgetDialog(
         text = {
             Column {
                 WidgetContent.entries.forEach { option ->
-                    TextButton(
+                    if (option !in alreadyAdded) {
+                        TextButton(
                         onClick = { onWidgetSelected(option) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(option.name)
+                        }
                     }
                 }
             }
