@@ -8,6 +8,7 @@ import com.example.soleilracingproject.model.telemetry.TelemetryPoint
 import com.example.soleilracingproject.data.remote.udp.UdpSocketListener
 import com.example.soleilracingproject.model.analysis.Lap
 import com.example.soleilracingproject.model.analysis.Session
+import com.example.soleilracingproject.model.telemetry.GpsGate
 import com.example.soleilracingproject.util.tools.lapLogic.LapLogic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -15,6 +16,12 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
+
+enum class RecordingState {
+    IDLE,
+    ARMED,
+    RECORDING_LAP
+}
 
 class HudViewModel(
     private val udpListener: UdpSocketListener,
@@ -32,11 +39,17 @@ class HudViewModel(
 
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
+    private val _recordingState = MutableStateFlow(RecordingState.IDLE)
+    val recordingState: StateFlow<RecordingState> = _recordingState.asStateFlow()
 
     private val activeLapBuffer = mutableListOf<TelemetryPoint>()
     private val completedLaps = mutableListOf<Lap>()
     private var sessionStartTime: Long = 0L
     private var currentSessionId: String = ""
+    private var previousPoint: TelemetryPoint? = null
+    private var lapStartTimeMs: Long? = null
+    // TODO: Supply the fixed TrackLayout finish gate and implement segment-crossing detection.
+    private val finishGate: GpsGate? = null
     
     private val _widgetLayout = MutableStateFlow(
         listOf(
@@ -81,7 +94,8 @@ class HudViewModel(
             udpListener.beginListening(4120)
         }
 
-        viewModelScope.launch(Dispatchers.Default) {
+        // Keep buffer updates on the same dispatcher as the Start/Stop button calls.
+        viewModelScope.launch {
             udpListener.observePackets().collect { rawBytes ->
                 val parsedPoint = parseUdpData(rawBytes)
                 if (parsedPoint != null) {
@@ -94,36 +108,53 @@ class HudViewModel(
     private fun processTelemetryPoint(point: TelemetryPoint) {
         _telemetryState.value = point
 
-        if (_isRecording.value) {
-            activeLapBuffer.add(point)
-
-            if (hasCrossedGpsGate(point)) {
-                finalizeCurrentLap()
+        when (_recordingState.value) {
+            RecordingState.IDLE -> Unit
+            RecordingState.ARMED -> {
+                // Start only arms us; the first crossing starts the clock, not a completed lap.
+                if (hasCrossedGpsGate(point)) {
+                    activeLapBuffer.clear()
+                    lapStartTimeMs = point.time.toLong()
+                    _recordingState.value = RecordingState.RECORDING_LAP
+                }
             }
+            RecordingState.RECORDING_LAP -> {
+                activeLapBuffer.add(point)
+                if (hasCrossedGpsGate(point)) {
+                    finalizeCurrentLap(point.time.toLong())
+                    // This crossing is also the next lap's starting timestamp.
+                    lapStartTimeMs = point.time.toLong()
+                }
+            }
+        }
+        previousPoint = point.takeIf {
+            it.latitude.isFinite() && it.longitude.isFinite() &&
+                it.latitude in -90f..90f && it.longitude in -180f..180f
         }
     }
 
     fun startRecording() {
-        if (_isRecording.value) return
+        if (_recordingState.value != RecordingState.IDLE) return
 
         activeLapBuffer.clear()
         completedLaps.clear()
+        previousPoint = null
+        lapStartTimeMs = null
         sessionStartTime = kotlin.time.Clock.System.now().toEpochMilliseconds()
         currentSessionId = "session_${Random.nextLong().toString(16)}"
         _isRecording.value = true
+        _recordingState.value = RecordingState.ARMED
     }
 
     fun stopRecording() {
-        if (!_isRecording.value) return
+        if (_recordingState.value == RecordingState.IDLE) return
+        _recordingState.value = RecordingState.IDLE
         _isRecording.value = false
-
-        // Flush any remaining active buffer points as the final lap
-        if (activeLapBuffer.isNotEmpty()) {
-            completedLaps.add(
-                LapLogic.buildLap(currentSessionId, completedLaps.size + 1, activeLapBuffer.toList())
-            )
-            activeLapBuffer.clear()
-        }
+        // Only crossed laps count for now; don't turn a stopped partial lap into a valid one.
+        // TODO: Decide whether partial laps should later be stored as isDnf = true.
+        activeLapBuffer.clear()
+        previousPoint = null
+        lapStartTimeMs = null
 
         val session = Session(
             id = currentSessionId,
@@ -137,18 +168,25 @@ class HudViewModel(
         // Persist session and laps to Room Database
         viewModelScope.launch(Dispatchers.IO) {
             sessionDao?.insertSession(session.toEntity())
-            lapDao?.insertLaps(completedLaps.map { it.toEntity() })
+            // Save this session's snapshot even if another Start clears the live lists.
+            lapDao?.insertLaps(session.laps.map { it.toEntity() })
         }
     }
 
     private fun hasCrossedGpsGate(point: TelemetryPoint): Boolean {
-        return LapLogic.hasCrossedGpsGate(point)
+        return LapLogic.hasCrossedGpsGate(previousPoint, point, finishGate)
     }
 
-    private fun finalizeCurrentLap() {
+    private fun finalizeCurrentLap(crossingTimeMs: Long) {
         if (activeLapBuffer.isEmpty()) return
+        val startTimeMs = lapStartTimeMs ?: return
 
-        val newLap = LapLogic.buildLap(currentSessionId, completedLaps.size + 1, activeLapBuffer.toList())
+        val newLap = LapLogic.buildLap(
+            currentSessionId,
+            completedLaps.size + 1,
+            activeLapBuffer.toList(),
+            crossingTimeMs - startTimeMs
+        )
         completedLaps.add(newLap)
         activeLapBuffer.clear()
     }
