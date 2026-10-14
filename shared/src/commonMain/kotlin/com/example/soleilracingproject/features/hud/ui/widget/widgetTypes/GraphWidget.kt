@@ -59,7 +59,7 @@ private fun segmentColors(speeds: List<Float>): List<Color> =
     }
 
 @Composable
-fun SpeedGraphWidget(telemetry: TelemetryPoint?) {
+fun GraphWidget(telemetry: TelemetryPoint?) {
     // The widget's notebook of past speeds
     val history = remember { mutableStateListOf<Float>() }
 
