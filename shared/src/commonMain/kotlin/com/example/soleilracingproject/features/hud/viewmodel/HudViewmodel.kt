@@ -69,7 +69,7 @@ class HudViewModel(
             ),
             WidgetConfig(
                 id = "speed_graph_default",
-                content = WidgetContent.SPEEDGRAPH,
+                content = WidgetContent.GRAPH,
                 title = "Speed Graph",
                 span = WidgetSpan.FULL,
                 heightDp = 240
