@@ -3,20 +3,36 @@ package com.example.soleilracingproject.util.tools.lapLogic
 import com.example.soleilracingproject.model.analysis.Lap
 import com.example.soleilracingproject.model.telemetry.GpsGate
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
-import kotlin.random.Random
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 object LapLogic {
+
+    fun haversineDistanceMeters(
+        lat1: Double, lon1: Double,
+        lat2: Double, lon2: Double
+    ): Double {
+        val earthRadiusMeters = 6371000.0
+        val dLat = (lat2 - lat1) * (PI / 180.0)
+        val dLon = (lon2 - lon1) * (PI / 180.0)
+        val a = sin(dLat / 2.0).pow(2) +
+            cos(lat1 * (PI / 180.0)) * cos(lat2 * (PI / 180.0)) *
+            sin(dLon / 2.0).pow(2)
+        val c = 2.0 * atan2(sqrt(a), sqrt(1.0 - a))
+        return earthRadiusMeters * c
+    }
 
     fun hasCrossedGpsGate(
         previousPoint: TelemetryPoint?,
         currentPoint: TelemetryPoint,
         finishGate: GpsGate?
     ): Boolean {
-        // We need two car positions and a configured gate before we can check a crossing.
         if (previousPoint == null || finishGate == null) return false
-        // A -> B is the car's movement; C -> D is the fixed gate.
-        // Convert the telemetry Floats to Double before doing the geometry calculations.
         val ax = previousPoint.longitude.toDouble()
         val ay = previousPoint.latitude.toDouble()
         val bx = currentPoint.longitude.toDouble()
@@ -25,31 +41,24 @@ object LapLogic {
         val cy = finishGate.lat1
         val dx = finishGate.lon2
         val dy = finishGate.lat2
-        // Check all four endpoints so bad GPS data cannot produce a false crossing.
+
         if (!validGps(ay, ax) || !validGps(by, bx) ||
             !validGps(cy, cx) || !validGps(dy, dx)
         ) return false
 
-        // Longitude is X and latitude is Y over our small track area.
-        // Direction filtering can come later when track configuration is connected.
-        // abc/abd tell us which side of the movement line each gate endpoint is on.
-        // cda/cdb do the reverse: which side of the gate each car position is on.
         val abc = orientation(ax, ay, bx, by, cx, cy)
         val abd = orientation(ax, ay, bx, by, dx, dy)
         val cda = orientation(cx, cy, dx, dy, ax, ay)
         val cdb = orientation(cx, cy, dx, dy, bx, by)
-        // Opposite signs in both pairs mean the segments cross through each other.
+
         if (abc * abd < 0 && cda * cdb < 0) return true
 
-        // Endpoint touches and collinear overlap count, but extensions beyond the gate don't.
-        // A zero orientation means a point is on the line; onSegment checks it is within the ends.
         return (abc == 0 && onSegment(ax, ay, bx, by, cx, cy)) ||
             (abd == 0 && onSegment(ax, ay, bx, by, dx, dy)) ||
             (cda == 0 && onSegment(cx, cy, dx, dy, ax, ay)) ||
             (cdb == 0 && onSegment(cx, cy, dx, dy, bx, by))
     }
 
-    // Zero is a valid coordinate. Reject NaN, infinity, and values outside Earth's coordinate ranges.
     private fun validGps(latitude: Double, longitude: Double): Boolean =
         latitude.isFinite() && longitude.isFinite() &&
             latitude in -90.0..90.0 && longitude in -180.0..180.0
@@ -57,11 +66,9 @@ object LapLogic {
     private fun orientation(
         ax: Double, ay: Double, bx: Double, by: Double, cx: Double, cy: Double
     ): Int {
-        // Cross product of A -> B and A -> C: positive = left, negative = right, zero = on the line.
         val left = (bx - ax) * (cy - ay)
         val right = (by - ay) * (cx - ax)
         val cross = left - right
-        // Tiny numerical tolerance in squared degrees, not a proximity radius.
         val epsilon = 1e-18 + 1e-12 * (abs(left) + abs(right))
         return when {
             cross > epsilon -> 1
@@ -73,8 +80,6 @@ object LapLogic {
     private fun onSegment(
         ax: Double, ay: Double, bx: Double, by: Double, px: Double, py: Double
     ): Boolean {
-        // Called only for a point already considered collinear; check the segment's bounding box.
-        // This tiny tolerance allows rounding at an endpoint, not a nearby-car distance threshold.
         val epsilon = 1e-10
         return px >= minOf(ax, bx) - epsilon && px <= maxOf(ax, bx) + epsilon &&
             py >= minOf(ay, by) - epsilon && py <= maxOf(ay, by) + epsilon
@@ -86,18 +91,113 @@ object LapLogic {
         points: List<TelemetryPoint>,
         durationMs: Long
     ): Lap {
-        // The ViewModel times crossings explicitly; buffered samples may start a little later.
-        // Keep the supplied crossing-to-crossing duration and find the fastest sample in this lap.
         val maxSpeed = points.maxOfOrNull { it.speed } ?: 0f
 
-        // Package the completed lap with its session ID, sequence number, and recorded samples.
         return Lap(
-            id = "lap_${Random.nextLong().toString(16)}",
+            id = "${sessionId}_lap_$lapNumber",
             sessionId = sessionId,
             lapNumber = lapNumber,
             lapTime = durationMs,
             topSpeedKmh = maxSpeed,
             telemetryPoints = points
         )
+    }
+
+    fun splitSessionIntoLaps(
+        sessionId: String,
+        points: List<TelemetryPoint>,
+        finishGate: GpsGate? = null,
+        minLapDurationMs: Long = 15000L,
+        maxProximityMeters: Double = 20.0
+    ): List<Lap> {
+        if (points.size < 2) {
+            return listOf(
+                buildLap(
+                    sessionId = sessionId,
+                    lapNumber = 1,
+                    points = points,
+                    durationMs = 0L
+                )
+            )
+        }
+
+        val gateToUse: GpsGate? = finishGate
+
+        if (gateToUse == null) {
+            val duration = (points.last().time - points.first().time).toLong()
+            return listOf(
+                buildLap(
+                    sessionId = sessionId,
+                    lapNumber = 1,
+                    points = points,
+                    durationMs = duration
+                )
+            )
+        }
+
+        val laps = mutableListOf<Lap>()
+        val currentLapPoints = mutableListOf<TelemetryPoint>()
+        var lapNumber = 1
+        var lastCrossingTime = points.first().time
+
+        currentLapPoints.add(points.first())
+
+        val gateCenterLat = (gateToUse.lat1 + gateToUse.lat2) / 2.0
+        val gateCenterLon = (gateToUse.lon1 + gateToUse.lon2) / 2.0
+
+        for (i in 1 until points.size) {
+            val prev = points[i - 1]
+            val curr = points[i]
+            currentLapPoints.add(curr)
+
+            val timeSinceLastCrossing = (curr.time - lastCrossingTime).toLong()
+
+            val isSegmentCrossing = hasCrossedGpsGate(prev, curr, gateToUse)
+            val distanceToGateMeters = haversineDistanceMeters(
+                curr.latitude.toDouble(), curr.longitude.toDouble(),
+                gateCenterLat, gateCenterLon
+            )
+            val isProximityCrossing = distanceToGateMeters <= maxProximityMeters
+
+            if ((isSegmentCrossing || isProximityCrossing) && (timeSinceLastCrossing >= minLapDurationMs)) {
+                laps.add(
+                    buildLap(
+                        sessionId = sessionId,
+                        lapNumber = lapNumber++,
+                        points = currentLapPoints.toList(),
+                        durationMs = timeSinceLastCrossing
+                    )
+                )
+
+                currentLapPoints.clear()
+                currentLapPoints.add(curr)
+                lastCrossingTime = curr.time
+            }
+        }
+
+        if (currentLapPoints.size >= 2) {
+            val lapDuration =
+                (currentLapPoints.last().time - currentLapPoints.first().time).toLong()
+            laps.add(
+                buildLap(
+                    sessionId = sessionId,
+                    lapNumber = lapNumber,
+                    points = currentLapPoints.toList(),
+                    durationMs = lapDuration
+                )
+            )
+        } else if (laps.isEmpty()) {
+            val duration = (points.last().time - points.first().time).toLong()
+            laps.add(
+                buildLap(
+                    sessionId = sessionId,
+                    lapNumber = 1,
+                    points = points,
+                    durationMs = duration
+                )
+            )
+        }
+
+        return laps
     }
 }

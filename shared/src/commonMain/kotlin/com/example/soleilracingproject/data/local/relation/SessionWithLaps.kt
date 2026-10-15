@@ -9,8 +9,9 @@ data class SessionWithLaps(
     @Embedded val session: SessionEntity,
 
     @Relation(
+        entity = LapEntity::class,
         parentColumns = ["id"],
-        entityColumns = ["sessionId"]
+        entityColumns = ["sessionId"],
     )
-    val laps: List<LapEntity>
+    val laps: List<LapWithTelemetry>
 )

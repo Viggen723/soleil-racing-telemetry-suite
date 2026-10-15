@@ -22,4 +22,5 @@ val appModule = module {
     }
     single { get<AppDatabase>().sessionDao() }
     single { get<AppDatabase>().lapDao() }
+    single { get<AppDatabase>().telemetryDao() }
 }

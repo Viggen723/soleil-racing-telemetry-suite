@@ -73,6 +73,7 @@ kotlin {
             implementation(libs.androidx.sqlite.bundled)
             implementation(compose.materialIconsExtended)
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
+            implementation("io.github.vinceglb:filekit-compose:0.8.7")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
