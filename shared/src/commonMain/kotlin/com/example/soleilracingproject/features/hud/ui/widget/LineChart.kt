@@ -14,6 +14,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlin.math.ceil
 import kotlin.math.roundToInt
+import kotlin.math.abs
 
 @Composable
 fun LineChart(
@@ -24,16 +25,33 @@ fun LineChart(
     maxPoints: Int = 200,
     xLabels: List<String> = emptyList(),
     yAxisTitle: String = "",
-    xAxisTitle: String = ""
-) {
+    xAxisTitle: String = "",
+    centerOnZero: Boolean = false,        // true = axis goes below zero too
+    roundTo: Float = 10f,                 // axis numbers round to this (10 for speed, 0.5 for G)
+    formatLabel: (Float) -> String = { it.roundToInt().toString() }
+)
+
+{
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val labelColor = MaterialTheme.colorScheme.outline
     val labelStyle = MaterialTheme.typography.labelSmall
 
 
     val maxValue = if (values.isEmpty()) 0f else values.max()
-    val stepSize = (ceil(maxValue / 4f / 10f) * 10f).coerceAtLeast(10f)
-    val topValue = stepSize * 4f
+    val biggest = if (values.isEmpty()) 0f else values.maxOf { abs(it) }
+
+    val topValue: Float
+    val bottomValue: Float
+    if (centerOnZero) {
+        // axis goes from -top to +top, with zero in the middle
+        topValue = (ceil(biggest / roundTo) * roundTo).coerceAtLeast(roundTo)
+        bottomValue = -topValue
+    } else {
+        // axis goes from 0 to top
+        val stepSize = (ceil(maxValue / 4f / roundTo) * roundTo).coerceAtLeast(roundTo)
+        topValue = stepSize * 4f
+        bottomValue = 0f
+    }
 
     Column(modifier = modifier) {
 
@@ -55,7 +73,7 @@ fun LineChart(
             ) {
                 for (k in 4 downTo 0) {
                     Text(
-                        text = (stepSize * k).roundToInt().toString(),
+                        text = formatLabel(bottomValue + (topValue - bottomValue) * k / 4f),
                         style = labelStyle,
                         color = labelColor
                     )
@@ -95,7 +113,7 @@ fun LineChart(
                 val points = values.indices.map { i ->
 
                     val x = size.width - (values.size - 1 - i) * stepX
-                    val fraction = (values[i] / topValue).coerceIn(0f, 1f)
+                    val fraction = ((values[i] - bottomValue) / (topValue - bottomValue)).coerceIn(0f, 1f)
                     val y = size.height - fraction * size.height
                     Offset(x, y)
                 }
