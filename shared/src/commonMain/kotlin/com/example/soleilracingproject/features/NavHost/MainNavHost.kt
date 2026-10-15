@@ -10,6 +10,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.soleilracingproject.features.analysis.ui.AnalysisView
 import com.example.soleilracingproject.features.hud.ui.HudView
+import com.example.soleilracingproject.features.garage.ui.GarageView
+import com.example.soleilracingproject.features.garage.viewmodel.GarageViewmodel
 import org.koin.compose.koinInject
 
 @Composable
@@ -40,6 +42,14 @@ fun MainNavHost(
                 onUpdateTopBarActions(null)
             }
             AnalysisView(viewModel = analysisViewModel)
+        }
+        composable<Route.Garage> {
+            val garageViewmodel: GarageViewmodel = koinInject()
+            LaunchedEffect(Unit) {
+                onUpdateTopBarActions(null)
+                onFocusModeChange(false)
+            }
+            GarageView(viewModel = garageViewmodel)
         }
     }
 }
