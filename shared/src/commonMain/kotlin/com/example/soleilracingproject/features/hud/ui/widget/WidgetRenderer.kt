@@ -14,7 +14,27 @@ import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.Speedo
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.GraphWidget
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.StartButtonWidget
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
+import com.example.soleilracingproject.util.tools.ConversionTools.formatOneDecimal
 
+// Is accelX in m/s² or g ?? (QN for Adam)
+private const val ACCEL_TO_G = 1f
+@Composable
+private fun LoggerDisconnected(title: String) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp)
+        )
+        Text(
+            text = "LOGGER DISCONNECTED",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.align(Alignment.Center)
+        )
+    }
+}
 @Composable
 fun WidgetRenderer(
     content: WidgetContent,
@@ -27,7 +47,20 @@ fun WidgetRenderer(
     when (content) {
         WidgetContent.SPEEDOMETER -> SpeedometerWidget(telemetry = telemetry)
         WidgetContent.ALTITUDE -> AltitudeWidget(telemetry = telemetry)
-        WidgetContent.GRAPH -> GraphWidget(telemetry = telemetry)
+        WidgetContent.SPEED_GRAPH -> {
+            if (telemetry != null) {
+                 GraphWidget(telemetry, title = "SPEED GRAPH", unit = "km/h", value = telemetry.speed, colorByChange = true)
+                     } else {
+                         LoggerDisconnected("SPEED GRAPH")
+                     }
+                 }
+        WidgetContent.G_FORCE_GRAPH -> {
+            if (telemetry != null) {
+                GraphWidget(telemetry, title = "G-FORCE GRAPH", unit = "g",value = telemetry.accelX * ACCEL_TO_G, colorBySign = true, centerOnZero = true, roundTo = 0.5f, formatLabel = { it.formatOneDecimal() })
+                     } else {
+                         LoggerDisconnected("G-FORCE GRAPH")
+                     }
+                 }
         WidgetContent.RECORDING_BUTTON -> {
             Box(
                 modifier = modifier

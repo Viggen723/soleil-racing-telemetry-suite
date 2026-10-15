@@ -15,6 +15,11 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.random.Random
+import kotlin.math.sin
+import kotlin.math.cos
+import kotlinx.coroutines.delay
+
+private const val USE_FAKE_DATA = true
 
 
 enum class RecordingState {
@@ -69,8 +74,15 @@ class HudViewModel(
             ),
             WidgetConfig(
                 id = "speed_graph_default",
-                content = WidgetContent.GRAPH,
+                content = WidgetContent.SPEED_GRAPH,
                 title = "Speed Graph",
+                span = WidgetSpan.FULL,
+                heightDp = 240
+            ),
+            WidgetConfig(
+                id = "g_force_graph_default",
+                content = WidgetContent.G_FORCE_GRAPH,
+                title = "G-Force Graph",
                 span = WidgetSpan.FULL,
                 heightDp = 240
             ),
@@ -86,7 +98,7 @@ class HudViewModel(
     val widgetLayout: StateFlow<List<WidgetConfig>> = _widgetLayout.asStateFlow()
 
     init {
-        startUdpListening()
+        if (USE_FAKE_DATA) startFakeData() else startUdpListening()
     }
 
     private fun startUdpListening() {
@@ -130,6 +142,29 @@ class HudViewModel(
         previousPoint = point.takeIf {
             it.latitude.isFinite() && it.longitude.isFinite() &&
                 it.latitude in -90f..90f && it.longitude in -180f..180f
+        }
+    }
+
+    // Pretend logger: sends a fake reading 10 times a second
+    private fun startFakeData() {
+        viewModelScope.launch {
+            var t = 0
+            while (true) {
+                val fakePoint = TelemetryPoint(
+                    time = t * 100,                    // milliseconds
+                    accelX = cos(t / 15f),             // swings between -1 and 1
+                    accelY = 0f,
+                    accelZ = 0f,
+                    latitude = 35.68f + 0.0009f * sin(t * 0.0105f),    // a circle about 100 m wide,
+                    longitude = 139.69f + 0.0011f * cos(t * 0.0105f),  // one lap every 60 seconds
+                    speed = 80f + 50f * sin(t / 15f),  // swings between 30 and 130
+                    qw = 1f, qi = 0f, qj = 0f, qk = 0f,
+                    altitude = 20f + 5f * sin(t / 40f)
+                )
+                processTelemetryPoint(fakePoint)
+                t++
+                delay(100)                             // wait 0.1 second
+            }
         }
     }
 
