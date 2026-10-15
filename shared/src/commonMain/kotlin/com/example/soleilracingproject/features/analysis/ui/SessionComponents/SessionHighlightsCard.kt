@@ -81,7 +81,7 @@ fun SessionHighlightsCard(
                 SessionStatItem("Recorded Laps", (selectedSession?.laps?.size ?: 0).toString())
                 SessionStatItem("Active Lap", "Lap #${displayLap?.lapNumber ?: 1}")
                 SessionStatItem("Lap Time", displayLap?.lapTime?.formatLapTime() ?: "N/A")
-                SessionStatItem("Top Speed", "${displayLap?.topSpeedKmh?.formatOneDecimal() ?: "N/A"} km/h")
+                SessionStatItem("Top Speed", "${displayLap?.topSpeedKmh?.formatOneDecimal() ?: "N/A"} mp/h")
             }
         }
     }

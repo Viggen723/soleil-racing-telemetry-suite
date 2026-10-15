@@ -41,8 +41,9 @@ object CsvTelemetryParser {
 
         fun fixCoord(value: Float): Float {
             var v = value
+            if (!v.isFinite()) return 0f
             while (abs(v) > 360f) {
-                v /= 1000f
+                v /= 10f
             }
             return v
         }
@@ -61,6 +62,12 @@ object CsvTelemetryParser {
                 val rawLat = getValue(TelemetryColumn.LATITUDE)?.toFloatOrNull() ?: 0f
                 val rawLon = getValue(TelemetryColumn.LONGITUDE)?.toFloatOrNull() ?: 0f
 
+                val lat = fixCoord(rawLat)
+                var lon = fixCoord(rawLon)
+                if (lat in 10f..75f && lon > 0f) {
+                    lon = -lon
+                }
+
                 TelemetryPoint(
                     time = getValue(TelemetryColumn.TIME)?.toIntOrNull()
                         ?: getValue(TelemetryColumn.TIME)?.toDoubleOrNull()?.toInt()
@@ -68,8 +75,8 @@ object CsvTelemetryParser {
                     accelX = getValue(TelemetryColumn.ACCELX)?.toFloatOrNull() ?: 0f,
                     accelY = getValue(TelemetryColumn.ACCELY)?.toFloatOrNull() ?: 0f,
                     accelZ = getValue(TelemetryColumn.ACCELZ)?.toFloatOrNull() ?: 0f,
-                    latitude = fixCoord(rawLat),
-                    longitude = fixCoord(rawLon),
+                    latitude = lat,
+                    longitude = lon,
                     speed = getValue(TelemetryColumn.SPEED)?.toFloatOrNull() ?: 0f,
                     qw = getValue(TelemetryColumn.QW)?.toFloatOrNull() ?: 1f,
                     qi = getValue(TelemetryColumn.QI)?.toFloatOrNull() ?: 0f,

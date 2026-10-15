@@ -88,7 +88,7 @@ fun GraphWidget(telemetry: TelemetryPoint?) {
                 color = MaterialTheme.colorScheme.outline
             )
             Text(
-                text = "NOW ${telemetry?.speed?.formatOneDecimal() ?: "0.0"} km/h",
+                text = "NOW ${telemetry?.speed?.formatOneDecimal() ?: "0.0"} mp/h",
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -99,7 +99,7 @@ fun GraphWidget(telemetry: TelemetryPoint?) {
             lineColor = MaterialTheme.colorScheme.primary,
             segmentColors = segmentColors(history),
             xLabels = listOf("-20s", "-10s", "Now"),
-            yAxisTitle = "km/h",
+            yAxisTitle = "mp/h",
             xAxisTitle = "Time (seconds ago)",
             modifier = Modifier
                 .fillMaxWidth()

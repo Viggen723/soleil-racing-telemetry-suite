@@ -239,7 +239,7 @@ fun AnalysisMapWidget(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = "Speed: ${point.speed.formatOneDecimal()} km/h",
+                            text = "Speed: ${point.speed.formatOneDecimal()} mp/h",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp,
                         )
