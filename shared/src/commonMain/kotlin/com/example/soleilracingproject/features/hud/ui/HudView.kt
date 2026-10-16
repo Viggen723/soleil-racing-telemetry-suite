@@ -3,7 +3,6 @@ package com.example.soleilracingproject.features.hud.ui
 import HudViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,6 +12,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.soleilracingproject.features.hud.ui.widget.*
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
+import com.example.soleilracingproject.util.tools.lapLogic.LapDeltas
+
+// How much bigger the main (center) widget is than each side widget
+private const val MAIN_SIZE = 1.5f
 
 @Composable
 fun HudView(
@@ -25,33 +28,29 @@ fun HudView(
     val widgets by viewModel.widgetLayout.collectAsStateWithLifecycle()
     val isEditMode by viewModel.isEditMode.collectAsStateWithLifecycle()
     val isRecording by viewModel.isRecording.collectAsStateWithLifecycle()
+    val lapDeltas by viewModel.lapDeltas.collectAsStateWithLifecycle()
 
-    var showAddDialog by remember { mutableStateOf(false) }
+    // Which widget is being replaced right now (null = the list is closed)
+    var replacingWidgetId by remember { mutableStateOf<String?>(null) }
 
-    // Focus mode!
-    val isFocusMode = (telemetry?.speed ?: 0f) > 10f
+    // Focus mode (full screen): only while recording AND moving, and never while editing.
+    // Before, it switched on whenever speed was above 10. That hid the Edit button,
+    // so nobody could edit while data was coming in.
+    val isFocusMode = isRecording && !isEditMode && (telemetry?.speed ?: 0f) > 10f
     LaunchedEffect(isFocusMode) {
         onFocusModeChange(isFocusMode)
     }
 
-    // Set top bar actions only when isEditMode changes, avoiding parent state mutations on telemetry recompositions
+    // Top bar: just the Edit / Done button now
     LaunchedEffect(isEditMode) {
         onUpdateTopBarActions {
-            if (isEditMode) {
-                Button(
-                    onClick = { showAddDialog = true },
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    Text("+ Add Widget")
-                }
-            }
             IconButton(onClick = viewModel::toggleEditMode) {
                 Text(if (isEditMode) "Done" else "Edit")
             }
         }
     }
 
-    // Clear top bar actions only when leaving HudView navigation screen
+    // Clear top bar actions only when leaving the HUD screen
     DisposableEffect(Unit) {
         onDispose {
             onUpdateTopBarActions(null)
@@ -63,19 +62,18 @@ fun HudView(
         widgets = widgets,
         isEditMode = isEditMode,
         isRecording = isRecording,
-        showAddDialog = showAddDialog,
-        onDismissAddDialog = { showAddDialog = false },
-        onAddWidgetSelected = { content ->
-            viewModel.addWidget(content)
-            showAddDialog = false
+        replacingWidgetId = replacingWidgetId,
+        onReplaceClick = { id -> replacingWidgetId = id },
+        onDismissDialog = { replacingWidgetId = null },
+        onReplaceSelected = { content ->
+            replacingWidgetId?.let { viewModel.replaceWidget(it, content) }
+            replacingWidgetId = null
         },
-        onMoveWidget = viewModel::moveWidget,
-        onToggleWidgetSpan = viewModel::toggleWidgetSpan,
-        onAdjustWidgetHeight = viewModel::adjustWidgetHeight,
-        onRemoveWidget = viewModel::removeWidget,
+        onMakeMain = viewModel::makeMain,
         onStartRecording = viewModel::startRecording,
         onStopRecording = viewModel::stopRecording,
-        modifier = modifier
+        modifier = modifier,
+        lapDeltas = lapDeltas
     )
 }
 
@@ -86,106 +84,100 @@ fun HudContent(
     widgets: List<WidgetConfig>,
     isEditMode: Boolean,
     isRecording: Boolean,
-    showAddDialog: Boolean = false,
-    onDismissAddDialog: () -> Unit = {},
-    onAddWidgetSelected: (WidgetContent) -> Unit = {},
-    onMoveWidget: (index: Int, offset: Int) -> Unit = { _, _ -> },
-    onToggleWidgetSpan: (id: String) -> Unit = {},
-    onAdjustWidgetHeight: (id: String, delta: Int) -> Unit = { _, _ -> },
-    onRemoveWidget: (id: String) -> Unit = {},
+    replacingWidgetId: String? = null,
+    onReplaceClick: (id: String) -> Unit = {},
+    onDismissDialog: () -> Unit = {},
+    onReplaceSelected: (WidgetContent) -> Unit = {},
+    onMakeMain: (index: Int) -> Unit = {},
     onStartRecording: () -> Unit = {},
     onStopRecording: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    lapDeltas: LapDeltas = LapDeltas(),
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            itemsIndexed(
-                items = widgets,
-                key = { _, item -> item.id },
-                span = { _, item -> GridItemSpan(item.span.spanCount) }
-            ) { index, widget ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(widget.heightDp.dp)
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        WidgetRenderer(
-                            content = widget.content,
-                            telemetry = telemetry,
-                            isRecording = isRecording,
-                            onStartRecording = onStartRecording,
-                            onStopRecording = onStopRecording
-                        )
+    // One widget card. index 0 = the main widget, index 1 and 2 = the side widgets.
+    // We write it once here so we don't repeat it for portrait and landscape.
+    val widgetCard: @Composable (Int, Modifier) -> Unit = { index, cardModifier ->
+        val widget = widgets.getOrNull(index)
+        if (widget != null) {
+            Card(modifier = cardModifier) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    WidgetRenderer(
+                        content = widget.content,
+                        telemetry = telemetry,
+                        isRecording = isRecording,
+                        onStartRecording = onStartRecording,
+                        onStopRecording = onStopRecording,
+                        lapDeltas = lapDeltas,
+                    )
 
-                        if (isEditMode) {
-                            WidgetControlOverlay(
-                                widget = widget,
-                                canMoveUp = index > 0,
-                                canMoveDown = index < widgets.size - 1,
-                                onMoveUp = { onMoveWidget(index, -1) },
-                                onMoveDown = { onMoveWidget(index, 1) },
-                                onToggleWidth = { onToggleWidgetSpan(widget.id) },
-                                onIncreaseHeight = { onAdjustWidgetHeight(widget.id, 30) },
-                                onDecreaseHeight = { onAdjustWidgetHeight(widget.id, -30) },
-                                onDelete = { onRemoveWidget(widget.id) }
-                            )
-                        }
+                    if (isEditMode) {
+                        WidgetControlOverlay(
+                            isMain = index == 0,
+                            onReplace = { onReplaceClick(widget.id) },
+                            onMakeMain = { onMakeMain(index) }
+                        )
                     }
                 }
             }
         }
+    }
 
-        if (showAddDialog) {
-            AddWidgetDialog(
-                alreadyAdded = widgets.map { it.content },
-                onDismiss = onDismissAddDialog,
-                onWidgetSelected = onAddWidgetSelected
-            )
+    // BoxWithConstraints tells us how big the screen is, so we know if it is wide or tall
+    BoxWithConstraints(modifier = modifier.fillMaxSize().padding(12.dp)) {
+        val isLandscape = maxWidth > maxHeight
+
+        if (isLandscape) {
+            // Landscap screen: side | main | side, left to right
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                widgetCard(1, Modifier.weight(1f).fillMaxHeight())
+                widgetCard(0, Modifier.weight(MAIN_SIZE).fillMaxHeight())
+                widgetCard(2, Modifier.weight(1f).fillMaxHeight())
+            }
+        } else {
+            // Potrait screen: side | main | side, top to bottom
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                widgetCard(1, Modifier.weight(1f).fillMaxWidth())
+                widgetCard(0, Modifier.weight(MAIN_SIZE).fillMaxWidth())
+                widgetCard(2, Modifier.weight(1f).fillMaxWidth())
+            }
         }
     }
+
+    // The "pick a widget" list, shown only after Replace was pressed
+    if (replacingWidgetId != null) {
+        AddWidgetDialog(
+            alreadyAdded = widgets.map { it.content },
+            onDismiss = onDismissDialog,
+            onWidgetSelected = onReplaceSelected
+        )
+    }
 }
+
 @Composable
 private fun WidgetControlOverlay(
-    widget: WidgetConfig,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
-    onToggleWidth: () -> Unit,
-    onIncreaseHeight: () -> Unit,
-    onDecreaseHeight: () -> Unit,
-    onDelete: () -> Unit
+    isMain: Boolean,
+    onReplace: () -> Unit,
+    onMakeMain: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
-            .padding(6.dp)
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f)),
+        contentAlignment = Alignment.Center
     ) {
-        Row(
-            modifier = Modifier.align(Alignment.TopStart),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (canMoveUp) SmallButton("▲", onMoveUp)
-            if (canMoveDown) SmallButton("▼", onMoveDown)
-        }
-
-        SmallButton("X", onDelete, modifier = Modifier.align(Alignment.TopEnd))
-
-        Row(
-            modifier = Modifier.align(Alignment.BottomEnd),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            SmallButton(if (widget.span == WidgetSpan.FULL) "1/2 Width" else "Full Width", onToggleWidth)
-            SmallButton("-H", onDecreaseHeight)
-            SmallButton("+H", onIncreaseHeight)
+            SmallButton("Replace", onReplace)
+            // the main widget can't be made main again
+            if (!isMain) SmallButton("Make main", onMakeMain)
         }
     }
 }
@@ -217,16 +209,17 @@ private fun AddWidgetDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Widget") },
+        title = { Text("Choose a widget") },
         text = {
             Column {
                 WidgetContent.entries.forEach { option ->
+                    // only show widgets that are not on the screen already
                     if (option !in alreadyAdded) {
                         TextButton(
-                        onClick = { onWidgetSelected(option) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(option.name)
+                            onClick = { onWidgetSelected(option) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(option.name)
                         }
                     }
                 }
@@ -247,15 +240,7 @@ fun HudContentPreview() {
             telemetry = null,
             widgets = emptyList(),
             isEditMode = true,
-            isRecording = false,
-            onDismissAddDialog = {},
-            onAddWidgetSelected = {},
-            onMoveWidget = { _, _ -> },
-            onToggleWidgetSpan = {},
-            onAdjustWidgetHeight = { _, _ -> },
-            onRemoveWidget = {},
-            onStartRecording = {},
-            onStopRecording = {}
+            isRecording = false
         )
     }
 }

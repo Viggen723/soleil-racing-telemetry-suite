@@ -3,6 +3,8 @@ package com.example.soleilracingproject.features.hud.ui.widget
 enum class WidgetContent {
     SPEEDOMETER,
     ALTITUDE,
-    GRAPH,
-    RECORDING_BUTTON
+    SPEED_GRAPH,
+    G_FORCE_CIRCLE,
+    RECORDING_BUTTON,
+    LAP_DELTA,
 }
