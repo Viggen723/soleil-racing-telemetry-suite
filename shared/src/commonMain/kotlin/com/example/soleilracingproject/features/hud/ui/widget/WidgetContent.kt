@@ -4,6 +4,7 @@ enum class WidgetContent {
     SPEEDOMETER,
     ALTITUDE,
     SPEED_GRAPH,
-    G_FORCE_GRAPH,
-    RECORDING_BUTTON
+    G_FORCE_CIRCLE,
+    RECORDING_BUTTON,
+    LAP_DELTA,
 }

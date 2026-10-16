@@ -18,6 +18,8 @@ import kotlin.random.Random
 import kotlin.math.sin
 import kotlin.math.cos
 import kotlinx.coroutines.delay
+import com.example.soleilracingproject.util.tools.lapLogic.DeltaCalculator
+import com.example.soleilracingproject.util.tools.lapLogic.LapDeltas
 
 private const val USE_FAKE_DATA = true
 
@@ -53,46 +55,21 @@ class HudViewModel(
     private var currentSessionId: String = ""
     private var previousPoint: TelemetryPoint? = null
     private var lapStartTimeMs: Long? = null
+    private val _lapDeltas = MutableStateFlow(LapDeltas())
+    val lapDeltas: StateFlow<LapDeltas> = _lapDeltas.asStateFlow()
     // TODO: Supply the fixed TrackLayout finish gate and implement segment-crossing detection.
-    private val finishGate: GpsGate? = null
-    
+
+    // While testing with fake data, use a gate across the fake circle. Real data still gets null.
+    private val finishGate: GpsGate? =
+        if (USE_FAKE_DATA) GpsGate(lat1 = 35.68, lon1 = 139.6909, lat2 = 35.68, lon2 = 139.6913) else null
+
     private val _widgetLayout = MutableStateFlow(
         listOf(
-            WidgetConfig(
-                id = "speed_default",
-                content = WidgetContent.SPEEDOMETER,
-                title = "Speedometer",
-                span = WidgetSpan.HALF,
-                heightDp = 160
-            ),
-            WidgetConfig(
-                id = "alt_default",
-                content = WidgetContent.ALTITUDE,
-                title = "Altitude",
-                span = WidgetSpan.HALF,
-                heightDp = 160
-            ),
-            WidgetConfig(
-                id = "speed_graph_default",
-                content = WidgetContent.SPEED_GRAPH,
-                title = "Speed Graph",
-                span = WidgetSpan.FULL,
-                heightDp = 240
-            ),
-            WidgetConfig(
-                id = "g_force_graph_default",
-                content = WidgetContent.G_FORCE_GRAPH,
-                title = "G-Force Graph",
-                span = WidgetSpan.FULL,
-                heightDp = 240
-            ),
-            WidgetConfig(
-                id = "recording_button_default",
-                content = WidgetContent.RECORDING_BUTTON,
-                title = "Recording Button",
-                span = WidgetSpan.HALF,
-                heightDp = 120
-            )
+            // The first one is the big main widget in the middle.
+            // The next two are the smaller side widgets.
+            WidgetConfig(id = "speed_default", content = WidgetContent.SPEEDOMETER, title = "Speedometer"),
+            WidgetConfig(id = "g_force_default", content = WidgetContent.G_FORCE_CIRCLE, title = "G-Force"),
+            WidgetConfig(id = "recording_button_default", content = WidgetContent.RECORDING_BUTTON, title = "Recording Button")
         )
     )
     val widgetLayout: StateFlow<List<WidgetConfig>> = _widgetLayout.asStateFlow()
@@ -137,11 +114,12 @@ class HudViewModel(
                     // This crossing is also the next lap's starting timestamp.
                     lapStartTimeMs = point.time.toLong()
                 }
+                updateLapDeltas()
             }
         }
         previousPoint = point.takeIf {
             it.latitude.isFinite() && it.longitude.isFinite() &&
-                it.latitude in -90f..90f && it.longitude in -180f..180f
+                    it.latitude in -90f..90f && it.longitude in -180f..180f
         }
     }
 
@@ -150,13 +128,14 @@ class HudViewModel(
         viewModelScope.launch {
             var t = 0
             while (true) {
+                val angle = t * 0.03f + 0.3f * sin(t / 100f)   // where the car is on the circle (a lap takes about 21 s)
                 val fakePoint = TelemetryPoint(
                     time = t * 100,                    // milliseconds
                     accelX = cos(t / 15f),             // swings between -1 and 1
-                    accelY = 0f,
+                    accelY = 0.8f * sin(t / 25f),      // wanders left and right
                     accelZ = 0f,
-                    latitude = 35.68f + 0.0009f * sin(t * 0.0105f),    // a circle about 100 m wide,
-                    longitude = 139.69f + 0.0011f * cos(t * 0.0105f),  // one lap every 60 seconds
+                    latitude = 35.68f + 0.0009f * sin(angle),
+                    longitude = 139.69f + 0.0011f * cos(angle),
                     speed = 80f + 50f * sin(t / 15f),  // swings between 30 and 130
                     qw = 1f, qi = 0f, qj = 0f, qk = 0f,
                     altitude = 20f + 5f * sin(t / 40f)
@@ -170,7 +149,7 @@ class HudViewModel(
 
     fun startRecording() {
         if (_recordingState.value != RecordingState.IDLE) return
-
+        _lapDeltas.value = LapDeltas()          // empty = "nothing to compare yet
         activeLapBuffer.clear()
         completedLaps.clear()
         previousPoint = null
@@ -183,6 +162,7 @@ class HudViewModel(
 
     fun stopRecording() {
         if (_recordingState.value == RecordingState.IDLE) return
+        _lapDeltas.value = LapDeltas()
         _recordingState.value = RecordingState.IDLE
         _isRecording.value = false
         // Only crossed laps count for now; don't turn a stopped partial lap into a valid one.
@@ -224,6 +204,19 @@ class HudViewModel(
         )
         completedLaps.add(newLap)
         activeLapBuffer.clear()
+    }
+
+    // Compare the lap we are driving now with the best lap and the last lap
+    private fun updateLapDeltas() {
+        val goodLaps = completedLaps.filter { !it.isDnf }
+        val bestLap = goodLaps.minByOrNull { it.lapTime }
+        val lastLap = goodLaps.lastOrNull()
+        val currentPoints = activeLapBuffer.toList()
+
+        _lapDeltas.value = LapDeltas(
+            vsBestSeconds = bestLap?.let { DeltaCalculator.deltaSeconds(it, currentPoints) },
+            vsLastSeconds = lastLap?.let { DeltaCalculator.deltaSeconds(it, currentPoints) }
+        )
     }
 
     // Widget Modification functions
@@ -278,6 +271,29 @@ class HudViewModel(
             heightDp = 160
         )
         _widgetLayout.update { it + newWidget }
+    }
+
+    // Swap the widget in this position with the main (first) one
+    fun makeMain(index: Int) {
+        val list = _widgetLayout.value.toMutableList()
+        if (index in 1 until list.size) {
+            val temp = list[0]
+            list[0] = list[index]
+            list[index] = temp
+            _widgetLayout.value = list
+        }
+    }
+
+    // Put a different widget in this widget's spot
+    fun replaceWidget(id: String, newContent: WidgetContent) {
+        // a widget that is already on screen can't be picked again
+        if (_widgetLayout.value.any { it.content == newContent }) return
+
+        _widgetLayout.update { list ->
+            list.map { widget ->
+                if (widget.id == id) widget.copy(content = newContent, title = newContent.name) else widget
+            }
+        }
     }
 
     fun removeWidget(id: String) {
