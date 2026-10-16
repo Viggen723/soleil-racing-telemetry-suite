@@ -1,4 +1,4 @@
-package com.example.soleilracingproject.features.analysis.ui
+package com.example.soleilracingproject.features.analysis.ui.widgets
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.example.soleilracingproject.model.analysis.Lap
 import com.example.soleilracingproject.model.telemetry.LatLng
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
+import com.example.soleilracingproject.util.tools.ConversionTools.formatOneDecimal
 import com.example.soleilracingproject.util.tools.ConversionTools.normalizeCoordinates
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -56,7 +57,7 @@ fun AnalysisMapWidget(
     }
 
     val coords: List<LatLng> = remember(lapPoints) {
-        lapPoints.map { (_, _, _, _, latitude, longitude) -> LatLng(latitude, longitude) }
+        lapPoints.map { LatLng(it.latitude, it.longitude) }
     }
 
     // Transform State for the moving map and zooming
@@ -122,15 +123,31 @@ fun AnalysisMapWidget(
                         var closestIndex = -1
                         var minDistance = Float.MAX_VALUE
 
-                        graphPoints.forEachIndexed { index, pt ->
+                        val step = (graphPoints.size / 1000).coerceAtLeast(1)
+                        var i = 0
+                        while (i < graphPoints.size) {
+                            val pt = graphPoints[i]
                             val dist = hypot(pt.x - transformedTap.x, pt.y - transformedTap.y)
                             if (dist < minDistance) {
                                 minDistance = dist
-                                closestIndex = index
+                                closestIndex = i
+                            }
+                            i += step
+                        }
+
+                        if (step > 1 && closestIndex != -1) {
+                            val searchStart = (closestIndex - step).coerceAtLeast(0)
+                            val searchEnd = (closestIndex + step).coerceAtMost(graphPoints.size - 1)
+                            for (idx in searchStart..searchEnd) {
+                                val pt = graphPoints[idx]
+                                val dist = hypot(pt.x - transformedTap.x, pt.y - transformedTap.y)
+                                if (dist < minDistance) {
+                                    minDistance = dist
+                                    closestIndex = idx
+                                }
                             }
                         }
 
-                        // Call the callback instead of updating local state
                         if ((minDistance < (40f / zoomLevel)) && (closestIndex != -1)) {
                             onPointSelected(closestIndex)
                         } else {
@@ -208,15 +225,34 @@ fun AnalysisMapWidget(
                 Card(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(16.dp),
+                        .padding(12.dp),
                     shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(MaterialTheme.colorScheme.onSurfaceVariant),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
                 ) {
-                    Column(modifier = Modifier.padding(6.dp)) {
-                        Text(text = "Point: #${index + 1}", color = MaterialTheme.colorScheme.onPrimary, fontSize = 10.sp)
-                        Text(text = "Speed: ${point.speed} ", color = MaterialTheme.colorScheme.onPrimary, fontSize = 10.sp)
-                        Text(text = "X-Accel: ${point.accelX}", color = MaterialTheme.colorScheme.onPrimary, fontSize = 10.sp)
-                        Text(text = "Y-Accel: ${point.accelY}", color = MaterialTheme.colorScheme.onPrimary, fontSize = 10.sp)
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Text(
+                            text = "Point #${index + 1}",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = "Speed: ${point.speed.formatOneDecimal()} mp/h",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp,
+                        )
+                        Text(
+                            text = "X-Accel: ${point.accelX.formatOneDecimal()} G",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp,
+                        )
+                        Text(
+                            text = "Y-Accel: ${point.accelY.formatOneDecimal()} G",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp,
+                        )
                     }
                 }
             }

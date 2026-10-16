@@ -34,7 +34,7 @@ fun SpeedometerWidget(telemetry: TelemetryPoint?) {
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text = "KM/H",
+            text = "MP/H",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.outline
         )

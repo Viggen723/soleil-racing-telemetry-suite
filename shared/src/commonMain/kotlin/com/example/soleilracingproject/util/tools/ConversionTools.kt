@@ -17,17 +17,12 @@ object ConversionTools {
         return rounded.toString()
     }
 
-    fun Float.formatTwoDecimals(): String {
-        val rounded = (this * 100).roundToInt() / 100.0f
-        return rounded.toString()
-    }
-
     fun Long.formatLapTime(): String {
         if (this <= 0) return "--:--.---"
         val minutes = this / 60000
         val seconds = (this % 60000) / 1000
         val millis = this % 1000
-        val secStr = if (seconds < 10) "0$seconds" else "$seconds"
+        val secStr = if (seconds < 10) "0$seconds" else seconds.toString()
         val msStr = when {
             millis < 10 -> "00$millis"
             millis < 100 -> "0$millis"
