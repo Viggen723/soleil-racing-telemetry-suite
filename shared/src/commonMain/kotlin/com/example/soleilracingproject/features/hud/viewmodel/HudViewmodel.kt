@@ -20,9 +20,11 @@ import kotlin.math.cos
 import kotlinx.coroutines.delay
 import com.example.soleilracingproject.util.tools.lapLogic.DeltaCalculator
 import com.example.soleilracingproject.util.tools.lapLogic.LapDeltas
+import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaMode
 
 private const val USE_FAKE_DATA = true
-
+// How many recent readings we remember for the graphs (200 readings = about 20 seconds)
+private const val HISTORY_SIZE = 200
 
 enum class RecordingState {
     IDLE,
@@ -48,6 +50,11 @@ class HudViewModel(
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
     private val _recordingState = MutableStateFlow(RecordingState.IDLE)
     val recordingState: StateFlow<RecordingState> = _recordingState.asStateFlow()
+    private val _recentPoints = MutableStateFlow<List<TelemetryPoint>>(emptyList())
+    val recentPoints: StateFlow<List<TelemetryPoint>> = _recentPoints.asStateFlow()
+    // Which delta the lap delta widget shows (best lap or last lap)
+    private val _deltaMode = MutableStateFlow(DeltaMode.BEST_LAP)
+    val deltaMode: StateFlow<DeltaMode> = _deltaMode.asStateFlow()
 
     private val activeLapBuffer = mutableListOf<TelemetryPoint>()
     private val completedLaps = mutableListOf<Lap>()
@@ -96,6 +103,7 @@ class HudViewModel(
 
     private fun processTelemetryPoint(point: TelemetryPoint) {
         _telemetryState.value = point
+        _recentPoints.value = (_recentPoints.value + point).takeLast(HISTORY_SIZE)
 
         when (_recordingState.value) {
             RecordingState.IDLE -> Unit
@@ -186,6 +194,11 @@ class HudViewModel(
             // Save this session's snapshot even if another Start clears the live lists.
             lapDao?.insertLaps(session.laps.map { it.toEntity() })
         }
+    }
+
+    // Called when the delta widget is tapped
+    fun nextDeltaMode() {
+        _deltaMode.value = DeltaMode.entries[(_deltaMode.value.ordinal + 1) % DeltaMode.entries.size]
     }
 
     private fun hasCrossedGpsGate(point: TelemetryPoint): Boolean {

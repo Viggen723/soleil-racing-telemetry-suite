@@ -7,10 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,9 +31,7 @@ private fun formatDelta(seconds: Float): String {
 }
 
 @Composable
-fun DeltaWidget(deltas: LapDeltas, isRecording: Boolean) {
-    // which kind of delta is showing right now
-    var mode by remember { mutableStateOf(DeltaMode.BEST_LAP) }
+fun DeltaWidget(deltas: LapDeltas, isRecording: Boolean, mode: DeltaMode, onNextMode: () -> Unit) {
 
     val delta = when (mode) {
         DeltaMode.BEST_LAP -> deltas.vsBestSeconds
@@ -60,10 +54,7 @@ fun DeltaWidget(deltas: LapDeltas, isRecording: Boolean) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .clickable {
-                // tap = go to the next kind of delta, and back to the first after the last one
-                mode = DeltaMode.entries[(mode.ordinal + 1) % DeltaMode.entries.size]
-            },
+            .clickable { onNextMode() },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
