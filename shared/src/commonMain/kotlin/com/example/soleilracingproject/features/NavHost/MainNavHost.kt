@@ -22,13 +22,15 @@ fun MainNavHost(
     onFocusModeChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    // Created once here, outside the screens, so changing tabs doesn't rebuild it
+    val hudViewModel: HudViewModel = koinInject()
     NavHost(
         navController = navHostController,
         startDestination = startDestination,
         modifier = modifier
     ) {
         composable<Route.Hud> {
-            val hudViewModel: HudViewModel = koinInject()
+
             HudView(
                 viewModel = hudViewModel,
                 onUpdateTopBarActions = onUpdateTopBarActions,
