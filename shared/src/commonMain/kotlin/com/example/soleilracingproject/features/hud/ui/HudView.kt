@@ -113,6 +113,7 @@ fun HudContent(
                     if (isEditMode) {
                         WidgetControlOverlay(
                             isMain = index == 0,
+                            canReplace = widget.content != WidgetContent.RECORDING_BUTTON,
                             onReplace = { onReplaceClick(widget.id) },
                             onMakeMain = { onMakeMain(index) }
                         )
@@ -162,6 +163,7 @@ fun HudContent(
 @Composable
 private fun WidgetControlOverlay(
     isMain: Boolean,
+    canReplace: Boolean,
     onReplace: () -> Unit,
     onMakeMain: () -> Unit
 ) {
@@ -175,7 +177,7 @@ private fun WidgetControlOverlay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            SmallButton("Replace", onReplace)
+            if (canReplace) SmallButton("Replace", onReplace)
             // the main widget can't be made main again
             if (!isMain) SmallButton("Make main", onMakeMain)
         }
