@@ -16,6 +16,7 @@ import com.example.soleilracingproject.util.tools.ConversionTools.formatOneDecim
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.GForceCircleWidget
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaWidget
 import com.example.soleilracingproject.util.tools.lapLogic.LapDeltas
+import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaMode
 
 @Composable
 private fun LoggerDisconnected(title: String) {
@@ -42,22 +43,25 @@ fun WidgetRenderer(
     onStartRecording: () -> Unit,
     onStopRecording: () -> Unit,
     lapDeltas: LapDeltas = LapDeltas(),
+    recentPoints: List<TelemetryPoint> = emptyList(),
+    deltaMode: DeltaMode = DeltaMode.BEST_LAP,
+    onNextDeltaMode: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     when (content) {
         WidgetContent.SPEEDOMETER -> SpeedometerWidget(telemetry = telemetry)
         WidgetContent.ALTITUDE -> AltitudeWidget(telemetry = telemetry)
-        WidgetContent.LAP_DELTA -> DeltaWidget(lapDeltas, isRecording)
+        WidgetContent.LAP_DELTA -> DeltaWidget(lapDeltas, isRecording, deltaMode, onNextDeltaMode)
         WidgetContent.SPEED_GRAPH -> {
             if (telemetry != null) {
-                GraphWidget(telemetry, title = "SPEED GRAPH", unit = "mph", value = telemetry.speed, colorByChange = true)
+                GraphWidget(telemetry, title = "SPEED GRAPH", unit = "mph", value = telemetry.speed, history = recentPoints.map { it.speed }, colorByChange = true)
             } else {
                 LoggerDisconnected("SPEED GRAPH")
             }
         }
         WidgetContent.G_FORCE_CIRCLE -> {
             if (telemetry != null) {
-                GForceCircleWidget(telemetry)
+                GForceCircleWidget(telemetry, recentPoints)
             } else {
                 LoggerDisconnected("G-FORCE")
             }

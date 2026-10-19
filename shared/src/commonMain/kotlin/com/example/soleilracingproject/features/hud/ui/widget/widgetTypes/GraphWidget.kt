@@ -15,9 +15,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -77,20 +74,13 @@ fun GraphWidget(
     title: String,
     unit: String,
     value: Float,
+    history: List<Float>,
     colorByChange: Boolean = false,
     colorBySign: Boolean = false,         // green above zero, pink/red below zero
     centerOnZero: Boolean = false,
     roundTo: Float = 10f,
     formatLabel: (Float) -> String = { it.roundToInt().toString() }
 ) {
-    val history = remember { mutableStateListOf<Float>() }
-
-    LaunchedEffect(telemetry) {
-        history.add(value)
-        if (history.size > 200) {
-            history.removeAt(0)
-        }
-    }
 
     Column(
         modifier = Modifier.fillMaxSize(),

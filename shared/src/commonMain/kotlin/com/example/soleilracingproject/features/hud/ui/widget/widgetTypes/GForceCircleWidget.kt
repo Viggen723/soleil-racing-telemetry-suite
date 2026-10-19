@@ -27,28 +27,22 @@ private const val ACCEL_TO_G = 1f
 private const val MAX_G = 1.5f
 // How many past readings the trail remembers (50 readings = about 5 seconds)
 private const val TRAIL_LENGTH = 50
+// The ONLY place that decides how a reading becomes forward / sideways g
+// (NB: FOR US if the dot goes the wrong way when we test the real logger, put a minus in front of p.accelY here)
+private fun forwardG(p: TelemetryPoint) = (p.accelX * ACCEL_TO_G).coerceIn(-MAX_G, MAX_G)
+private fun sidewaysG(p: TelemetryPoint) = (p.accelY * ACCEL_TO_G).coerceIn(-MAX_G, MAX_G)
 
 private val AccelGreen = Color(0xFF1B5E20)
 private val BrakeRed = Color(0xFFB71C1C)
 private val SteadyGray = Color(0xFF9E9E9E)
 
 @Composable
-fun GForceCircleWidget(telemetry: TelemetryPoint) {
+fun GForceCircleWidget(telemetry: TelemetryPoint, recentPoints: List<TelemetryPoint>) {
     // forward:  positive = speeding up, negative = braking
-    val forward = (telemetry.accelX * ACCEL_TO_G).coerceIn(-MAX_G, MAX_G)
-    // sideways: positive = turning left, negative = turning right
-    // (this is an assumption about how the logger is mounted. If the dot goes the wrong
-    //  way with the real logger, put a minus in front of telemetry.accelY)
-    val sideways = (telemetry.accelY * ACCEL_TO_G).coerceIn(-MAX_G, MAX_G)
+    val forward = forwardG(telemetry)
+    val sideways = sidewaysG(telemetry)
 
-    // The trail. Each Offset is just a pair of numbers: (sideways g, forward g)
-    val trail = remember { mutableStateListOf<Offset>() }
-    LaunchedEffect(telemetry) {
-        trail.add(Offset(sideways, forward))
-        if (trail.size > TRAIL_LENGTH) {
-            trail.removeAt(0)       // forget the oldest spot
-        }
-    }
+    val trail = recentPoints.takeLast(TRAIL_LENGTH).map { Offset(sidewaysG(it), forwardG(it)) }
 
     val ringColor = MaterialTheme.colorScheme.outlineVariant
     val labelColor = MaterialTheme.colorScheme.outline

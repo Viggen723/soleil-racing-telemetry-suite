@@ -13,6 +13,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.soleilracingproject.features.hud.ui.widget.*
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
 import com.example.soleilracingproject.util.tools.lapLogic.LapDeltas
+import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaMode
 
 // How much bigger the main (center) widget is than each side widget
 private const val MAIN_SIZE = 1.5f
@@ -29,6 +30,8 @@ fun HudView(
     val isEditMode by viewModel.isEditMode.collectAsStateWithLifecycle()
     val isRecording by viewModel.isRecording.collectAsStateWithLifecycle()
     val lapDeltas by viewModel.lapDeltas.collectAsStateWithLifecycle()
+    val recentPoints by viewModel.recentPoints.collectAsStateWithLifecycle()
+    val deltaMode by viewModel.deltaMode.collectAsStateWithLifecycle()
 
     // Which widget is being replaced right now (null = the list is closed)
     var replacingWidgetId by remember { mutableStateOf<String?>(null) }
@@ -73,7 +76,10 @@ fun HudView(
         onStartRecording = viewModel::startRecording,
         onStopRecording = viewModel::stopRecording,
         modifier = modifier,
-        lapDeltas = lapDeltas
+        lapDeltas = lapDeltas,
+        recentPoints = recentPoints,
+        deltaMode = deltaMode,
+        onNextDeltaMode = viewModel::nextDeltaMode,
     )
 }
 
@@ -93,6 +99,9 @@ fun HudContent(
     onStopRecording: () -> Unit = {},
     modifier: Modifier = Modifier,
     lapDeltas: LapDeltas = LapDeltas(),
+    recentPoints: List<TelemetryPoint> = emptyList(),
+    deltaMode: DeltaMode = DeltaMode.BEST_LAP,
+    onNextDeltaMode: () -> Unit = {},
 ) {
     // One widget card. index 0 = the main widget, index 1 and 2 = the side widgets.
     // We write it once here so we don't repeat it for portrait and landscape.
@@ -108,6 +117,9 @@ fun HudContent(
                         onStartRecording = onStartRecording,
                         onStopRecording = onStopRecording,
                         lapDeltas = lapDeltas,
+                        recentPoints = recentPoints,
+                        deltaMode = deltaMode,
+                        onNextDeltaMode = onNextDeltaMode,
                     )
 
                     if (isEditMode) {
