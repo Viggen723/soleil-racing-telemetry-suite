@@ -7,4 +7,5 @@ enum class WidgetContent {
     G_FORCE_CIRCLE,
     RECORDING_BUTTON,
     LAP_DELTA,
+    LAP_TIMES,
 }

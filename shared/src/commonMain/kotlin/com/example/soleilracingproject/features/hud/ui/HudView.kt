@@ -14,6 +14,7 @@ import com.example.soleilracingproject.features.hud.ui.widget.*
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
 import com.example.soleilracingproject.util.tools.lapLogic.LapDeltas
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaMode
+import com.example.soleilracingproject.model.analysis.Lap
 
 // How much bigger the main (center) widget is than each side widget
 private const val MAIN_SIZE = 1.5f
@@ -32,6 +33,7 @@ fun HudView(
     val lapDeltas by viewModel.lapDeltas.collectAsStateWithLifecycle()
     val recentPoints by viewModel.recentPoints.collectAsStateWithLifecycle()
     val deltaMode by viewModel.deltaMode.collectAsStateWithLifecycle()
+    val laps by viewModel.lapsState.collectAsStateWithLifecycle()
 
     // Which widget is being replaced right now (null = the list is closed)
     var replacingWidgetId by remember { mutableStateOf<String?>(null) }
@@ -80,6 +82,7 @@ fun HudView(
         recentPoints = recentPoints,
         deltaMode = deltaMode,
         onNextDeltaMode = viewModel::nextDeltaMode,
+        laps = laps,
     )
 }
 
@@ -102,6 +105,7 @@ fun HudContent(
     recentPoints: List<TelemetryPoint> = emptyList(),
     deltaMode: DeltaMode = DeltaMode.BEST_LAP,
     onNextDeltaMode: () -> Unit = {},
+    laps: List<Lap> = emptyList(),
 ) {
     // One widget card. index 0 = the main widget, index 1 and 2 = the side widgets.
     // We write it once here so we don't repeat it for portrait and landscape.
@@ -120,6 +124,7 @@ fun HudContent(
                         recentPoints = recentPoints,
                         deltaMode = deltaMode,
                         onNextDeltaMode = onNextDeltaMode,
+                        laps = laps,
                     )
 
                     if (isEditMode) {
@@ -233,7 +238,7 @@ private fun AddWidgetDialog(
                             onClick = { onWidgetSelected(option) },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(option.name)
+                            Text(option.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() })
                         }
                     }
                 }

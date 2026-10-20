@@ -55,6 +55,9 @@ class HudViewModel(
     // Which delta the lap delta widget shows (best lap or last lap)
     private val _deltaMode = MutableStateFlow(DeltaMode.BEST_LAP)
     val deltaMode: StateFlow<DeltaMode> = _deltaMode.asStateFlow()
+    // The laps finished in this recording. The lap times widget reads this.
+    private val _lapsState = MutableStateFlow<List<Lap>>(emptyList())
+    val lapsState: StateFlow<List<Lap>> = _lapsState.asStateFlow()
 
     private val activeLapBuffer = mutableListOf<TelemetryPoint>()
     private val completedLaps = mutableListOf<Lap>()
@@ -160,6 +163,7 @@ class HudViewModel(
         _lapDeltas.value = LapDeltas()          // empty = "nothing to compare yet
         activeLapBuffer.clear()
         completedLaps.clear()
+        _lapsState.value = emptyList()
         previousPoint = null
         lapStartTimeMs = null
         sessionStartTime = kotlin.time.Clock.System.now().toEpochMilliseconds()
@@ -216,6 +220,7 @@ class HudViewModel(
             crossingTimeMs - startTimeMs
         )
         completedLaps.add(newLap)
+        _lapsState.value = completedLaps.toList()
         activeLapBuffer.clear()
     }
 

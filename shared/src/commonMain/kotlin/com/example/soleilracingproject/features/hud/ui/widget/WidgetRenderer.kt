@@ -17,6 +17,8 @@ import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.GForce
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaWidget
 import com.example.soleilracingproject.util.tools.lapLogic.LapDeltas
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaMode
+import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.LapTimesWidget
+import com.example.soleilracingproject.model.analysis.Lap
 
 @Composable
 private fun LoggerDisconnected(title: String) {
@@ -44,6 +46,7 @@ fun WidgetRenderer(
     onStopRecording: () -> Unit,
     lapDeltas: LapDeltas = LapDeltas(),
     recentPoints: List<TelemetryPoint> = emptyList(),
+    laps: List<Lap> = emptyList(),
     deltaMode: DeltaMode = DeltaMode.BEST_LAP,
     onNextDeltaMode: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -52,6 +55,7 @@ fun WidgetRenderer(
         WidgetContent.SPEEDOMETER -> SpeedometerWidget(telemetry = telemetry)
         WidgetContent.ALTITUDE -> AltitudeWidget(telemetry = telemetry)
         WidgetContent.LAP_DELTA -> DeltaWidget(lapDeltas, isRecording, deltaMode, onNextDeltaMode)
+        WidgetContent.LAP_TIMES -> LapTimesWidget(laps, isRecording)
         WidgetContent.SPEED_GRAPH -> {
             if (telemetry != null) {
                 GraphWidget(telemetry, title = "SPEED GRAPH", unit = "mph", value = telemetry.speed, history = recentPoints.map { it.speed }, colorByChange = true)
