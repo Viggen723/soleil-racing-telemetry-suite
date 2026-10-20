@@ -1,6 +1,5 @@
 package com.example.soleilracingproject.features.analysis.ui
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -10,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,7 +23,6 @@ import androidx.compose.ui.unit.sp
 import com.example.soleilracingproject.model.analysis.Lap
 import com.example.soleilracingproject.util.tools.ConversionTools.formatLapTime
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LapSelectorRow(
     laps: List<Lap>,
