@@ -2,27 +2,30 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.soleilracingproject.data.local.dao.LapDao
 import com.example.soleilracingproject.data.local.dao.SessionDao
+import com.example.soleilracingproject.data.local.dao.TelemetryDao
 import com.example.soleilracingproject.data.mapper.toEntity
-import com.example.soleilracingproject.features.hud.ui.widget.*
-import com.example.soleilracingproject.model.telemetry.TelemetryPoint
 import com.example.soleilracingproject.data.remote.udp.UdpSocketListener
+import com.example.soleilracingproject.features.analysis.data.AnalysisRepository
+import com.example.soleilracingproject.features.hud.ui.widget.*
+import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaMode
+import com.example.soleilracingproject.model.analysis.KnownTracks
 import com.example.soleilracingproject.model.analysis.Lap
 import com.example.soleilracingproject.model.analysis.Session
 import com.example.soleilracingproject.model.telemetry.GpsGate
+import com.example.soleilracingproject.model.telemetry.TelemetryPoint
+import com.example.soleilracingproject.util.tools.lapLogic.DeltaCalculator
+import com.example.soleilracingproject.util.tools.lapLogic.LapDeltas
 import com.example.soleilracingproject.util.tools.lapLogic.LapLogic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlin.random.Random
-import kotlin.math.sin
 import kotlin.math.cos
-import kotlinx.coroutines.delay
-import com.example.soleilracingproject.util.tools.lapLogic.DeltaCalculator
-import com.example.soleilracingproject.util.tools.lapLogic.LapDeltas
-import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaMode
+import kotlin.math.sin
+import kotlin.random.Random
 
-private const val USE_FAKE_DATA = true
+private const val USE_FAKE_DATA = false
 // How many recent readings we remember for the graphs (200 readings = about 20 seconds)
 private const val HISTORY_SIZE = 200
 
@@ -36,8 +39,9 @@ class HudViewModel(
     private val udpListener: UdpSocketListener,
     private val parseUdpData: (ByteArray) -> TelemetryPoint?,
     private val sessionDao: SessionDao? = null,
-    private val lapDao: LapDao? = null
-
+    private val lapDao: LapDao? = null,
+    private val telemetryDao: TelemetryDao? = null,
+    private val analysisRepository: AnalysisRepository? = null,
 ) : ViewModel() {
 
     private val _telemetryState = MutableStateFlow<TelemetryPoint?>(null)
@@ -52,7 +56,6 @@ class HudViewModel(
     val recordingState: StateFlow<RecordingState> = _recordingState.asStateFlow()
     private val _recentPoints = MutableStateFlow<List<TelemetryPoint>>(emptyList())
     val recentPoints: StateFlow<List<TelemetryPoint>> = _recentPoints.asStateFlow()
-    // Which delta the lap delta widget shows (best lap or last lap)
     private val _deltaMode = MutableStateFlow(DeltaMode.BEST_LAP)
     val deltaMode: StateFlow<DeltaMode> = _deltaMode.asStateFlow()
     // The laps finished in this recording. The lap times widget reads this.
@@ -60,23 +63,22 @@ class HudViewModel(
     val lapsState: StateFlow<List<Lap>> = _lapsState.asStateFlow()
 
     private val activeLapBuffer = mutableListOf<TelemetryPoint>()
+    private val allRecordedSessionPoints = mutableListOf<TelemetryPoint>()
     private val completedLaps = mutableListOf<Lap>()
     private var sessionStartTime: Long = 0L
     private var currentSessionId: String = ""
     private var previousPoint: TelemetryPoint? = null
     private var lapStartTimeMs: Long? = null
+    private var detectedGate: GpsGate? = null
+
     private val _lapDeltas = MutableStateFlow(LapDeltas())
     val lapDeltas: StateFlow<LapDeltas> = _lapDeltas.asStateFlow()
-    // TODO: Supply the fixed TrackLayout finish gate and implement segment-crossing detection.
 
-    // While testing with fake data, use a gate across the fake circle. Real data still gets null.
     private val finishGate: GpsGate? =
         if (USE_FAKE_DATA) GpsGate(lat1 = 35.68, lon1 = 139.6909, lat2 = 35.68, lon2 = 139.6913) else null
 
     private val _widgetLayout = MutableStateFlow(
         listOf(
-            // The first one is the big main widget in the middle.
-            // The next two are the smaller side widgets.
             WidgetConfig(id = "speed_default", content = WidgetContent.SPEEDOMETER, title = "Speedometer"),
             WidgetConfig(id = "g_force_default", content = WidgetContent.G_FORCE_CIRCLE, title = "G-Force"),
             WidgetConfig(id = "recording_button_default", content = WidgetContent.RECORDING_BUTTON, title = "Recording Button")
@@ -93,7 +95,6 @@ class HudViewModel(
             udpListener.beginListening(4120)
         }
 
-        // Keep buffer updates on the same dispatcher as the Start/Stop button calls.
         viewModelScope.launch {
             udpListener.observePackets().collect { rawBytes ->
                 val parsedPoint = parseUdpData(rawBytes)
@@ -108,10 +109,13 @@ class HudViewModel(
         _telemetryState.value = point
         _recentPoints.value = (_recentPoints.value + point).takeLast(HISTORY_SIZE)
 
+        if (_isRecording.value) {
+            allRecordedSessionPoints.add(point)
+        }
+
         when (_recordingState.value) {
             RecordingState.IDLE -> Unit
             RecordingState.ARMED -> {
-                // Start only arms us; the first crossing starts the clock, not a completed lap.
                 if (hasCrossedGpsGate(point)) {
                     activeLapBuffer.clear()
                     lapStartTimeMs = point.time.toLong()
@@ -122,7 +126,6 @@ class HudViewModel(
                 activeLapBuffer.add(point)
                 if (hasCrossedGpsGate(point)) {
                     finalizeCurrentLap(point.time.toLong())
-                    // This crossing is also the next lap's starting timestamp.
                     lapStartTimeMs = point.time.toLong()
                 }
                 updateLapDeltas()
@@ -134,38 +137,39 @@ class HudViewModel(
         }
     }
 
-    // Pretend logger: sends a fake reading 10 times a second
     private fun startFakeData() {
         viewModelScope.launch {
             var t = 0
             while (true) {
-                val angle = t * 0.03f + 0.3f * sin(t / 100f)   // where the car is on the circle (a lap takes about 21 s)
+                val angle = t * 0.03f + 0.3f * sin(t / 100f)
                 val fakePoint = TelemetryPoint(
-                    time = t * 100,                    // milliseconds
-                    accelX = cos(t / 15f),             // swings between -1 and 1
-                    accelY = 0.8f * sin(t / 25f),      // wanders left and right
+                    time = t * 100,
+                    accelX = cos(t / 15f),
+                    accelY = 0.8f * sin(t / 25f),
                     accelZ = 0f,
                     latitude = 35.68f + 0.0009f * sin(angle),
                     longitude = 139.69f + 0.0011f * cos(angle),
-                    speed = 80f + 50f * sin(t / 15f),  // swings between 30 and 130
+                    speed = 80f + 50f * sin(t / 15f),
                     qw = 1f, qi = 0f, qj = 0f, qk = 0f,
                     altitude = 20f + 5f * sin(t / 40f)
                 )
                 processTelemetryPoint(fakePoint)
                 t++
-                delay(100)                             // wait 0.1 second
+                delay(100)
             }
         }
     }
 
     fun startRecording() {
         if (_recordingState.value != RecordingState.IDLE) return
-        _lapDeltas.value = LapDeltas()          // empty = "nothing to compare yet
+        _lapDeltas.value = LapDeltas()
         activeLapBuffer.clear()
+        allRecordedSessionPoints.clear()
         completedLaps.clear()
         _lapsState.value = emptyList()
         previousPoint = null
         lapStartTimeMs = null
+        detectedGate = null
         sessionStartTime = kotlin.time.Clock.System.now().toEpochMilliseconds()
         currentSessionId = "session_${Random.nextLong().toString(16)}"
         _isRecording.value = true
@@ -173,40 +177,83 @@ class HudViewModel(
     }
 
     fun stopRecording() {
-        if (_recordingState.value == RecordingState.IDLE) return
+        if (!_isRecording.value) return
+
+        val sessionPoints = allRecordedSessionPoints.toList()
+        allRecordedSessionPoints.clear()
+        activeLapBuffer.clear()
+        completedLaps.clear()
+        previousPoint = null
+        lapStartTimeMs = null
         _lapDeltas.value = LapDeltas()
         _recordingState.value = RecordingState.IDLE
         _isRecording.value = false
-        // Only crossed laps count for now; don't turn a stopped partial lap into a valid one.
-        // TODO: Decide whether partial laps should later be stored as isDnf = true.
-        activeLapBuffer.clear()
-        previousPoint = null
-        lapStartTimeMs = null
 
-        val session = Session(
-            id = currentSessionId,
-            title = "Track Session",
-            vehicleId = "2022 Kawasaki ZX-6R",
-            track = "Lime Rock Park",
-            dateEpoch = sessionStartTime,
-            laps = completedLaps.toList()
-        )
+        if (sessionPoints.size < 2) return
 
-        // Persist session and laps to Room Database
         viewModelScope.launch(Dispatchers.IO) {
-            sessionDao?.insertSession(session.toEntity())
-            // Save this session's snapshot even if another Start clears the live lists.
-            lapDao?.insertLaps(session.laps.map { it.toEntity() })
+            val matchedTrack = KnownTracks.findMatchingTrack(sessionPoints)
+            val presetGate = matchedTrack?.startFinishGate
+            val autoGate = LapLogic.autoGenerateGate(sessionPoints)
+            val gateToUse = presetGate ?: autoGate ?: detectedGate ?: finishGate
+
+            var laps = LapLogic.splitSessionIntoLaps(
+                sessionId = currentSessionId,
+                points = sessionPoints,
+                finishGate = gateToUse,
+            )
+
+            if (laps.size <= 1 && autoGate != null && sessionPoints.size > 200) {
+                val autoLaps = LapLogic.splitSessionIntoLaps(
+                    sessionId = currentSessionId,
+                    points = sessionPoints,
+                    finishGate = autoGate,
+                )
+                if (autoLaps.size > 1) {
+                    laps = autoLaps
+                }
+            }
+
+            val session = Session(
+                id = currentSessionId,
+                title = "HUD Session (${laps.size} laps)",
+                vehicleId = "2022 Kawasaki ZX-6R",
+                track = matchedTrack?.trackName ?: "Recorded Session",
+                dateEpoch = sessionStartTime,
+                isSynced = false,
+                laps = laps,
+            )
+
+            if (analysisRepository != null) {
+                analysisRepository.addSession(session)
+            } else {
+                sessionDao?.insertSession(session.toEntity())
+                laps.forEach { lap ->
+                    lapDao?.insertLap(lap.toEntity())
+                    val telemetryEntities = lap.telemetryPoints.map { pt ->
+                        pt.toEntity(sessionId = session.id, lapId = lap.id)
+                    }
+                    telemetryEntities.chunked(1000).forEach { batch ->
+                        telemetryDao?.insertTelemetryBatch(batch)
+                    }
+                }
+            }
         }
     }
 
-    // Called when the delta widget is tapped
     fun nextDeltaMode() {
         _deltaMode.value = DeltaMode.entries[(_deltaMode.value.ordinal + 1) % DeltaMode.entries.size]
     }
 
     private fun hasCrossedGpsGate(point: TelemetryPoint): Boolean {
-        return LapLogic.hasCrossedGpsGate(previousPoint, point, finishGate)
+        val gateToUse = finishGate ?: detectedGate ?: run {
+            if (point.latitude != 0f || point.longitude != 0f) {
+                val matched = KnownTracks.findMatchingTrack(listOf(point))
+                detectedGate = matched?.startFinishGate
+            }
+            detectedGate
+        }
+        return LapLogic.hasCrossedGpsGate(previousPoint, point, gateToUse)
     }
 
     private fun finalizeCurrentLap(crossingTimeMs: Long) {
@@ -224,7 +271,6 @@ class HudViewModel(
         activeLapBuffer.clear()
     }
 
-    // Compare the lap we are driving now with the best lap and the last lap
     private fun updateLapDeltas() {
         val goodLaps = completedLaps.filter { !it.isDnf }
         val bestLap = goodLaps.minByOrNull { it.lapTime }
@@ -236,8 +282,6 @@ class HudViewModel(
             vsLastSeconds = lastLap?.let { DeltaCalculator.deltaSeconds(it, currentPoints) }
         )
     }
-
-    // Widget Modification functions
 
     fun toggleEditMode() {
         _isEditMode.value = !_isEditMode.value
@@ -276,7 +320,6 @@ class HudViewModel(
     }
 
     fun addWidget(content: WidgetContent) {
-        // If this widget is already on the screen, stop here
         val alreadyThere = _widgetLayout.value.any { it.content == content }
         if (alreadyThere) return
 
@@ -291,7 +334,6 @@ class HudViewModel(
         _widgetLayout.update { it + newWidget }
     }
 
-    // Swap the widget in this position with the main (first) one
     fun makeMain(index: Int) {
         val list = _widgetLayout.value.toMutableList()
         if (index in 1 until list.size) {
@@ -302,9 +344,7 @@ class HudViewModel(
         }
     }
 
-    // Put a different widget in this widget's spot
     fun replaceWidget(id: String, newContent: WidgetContent) {
-        // a widget that is already on screen can't be picked again
         if (_widgetLayout.value.any { it.content == newContent }) return
 
         _widgetLayout.update { list ->

@@ -25,4 +25,3 @@ val appModule = module {
     single { get<AppDatabase>().telemetryDao() }
     single { get<AppDatabase>().carDao() }
 }
-

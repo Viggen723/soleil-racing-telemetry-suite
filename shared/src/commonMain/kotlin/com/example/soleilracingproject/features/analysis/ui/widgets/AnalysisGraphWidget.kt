@@ -3,8 +3,8 @@ package com.example.soleilracingproject.features.analysis.ui.widgets
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -44,12 +45,14 @@ import kotlin.math.roundToInt
 @Composable
 fun AnalysisGraphWidget(
     lap: Lap?,
+    comparisonLap: Lap? = null,
     metric: TelemetryMetric,
     selectedIndex: Int?,
     onPointSelected: (Int?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val telemetry = lap?.telemetryPoints ?: emptyList()
+    val compTelemetry = comparisonLap?.telemetryPoints ?: emptyList()
     val labelColor = MaterialTheme.colorScheme.outline
     val labelStyle = MaterialTheme.typography.labelSmall
 
@@ -65,8 +68,13 @@ fun AnalysisGraphWidget(
         return
     }
 
-    val maxValue = telemetry.maxOfOrNull { metric.extractValue(it) } ?: 100f
-    val minValue = telemetry.minOfOrNull { metric.extractValue(it) } ?: 0f
+    val primaryMax = telemetry.maxOfOrNull { metric.extractValue(it) } ?: 100f
+    val primaryMin = telemetry.minOfOrNull { metric.extractValue(it) } ?: 0f
+    val compMax = compTelemetry.maxOfOrNull { metric.extractValue(it) } ?: primaryMax
+    val compMin = compTelemetry.minOfOrNull { metric.extractValue(it) } ?: primaryMin
+
+    val maxValue = maxOf(primaryMax, compMax)
+    val minValue = minOf(primaryMin, compMin)
     val valueRange = (maxValue - minValue).coerceAtLeast(0.1f)
 
     val startPointTime = telemetry.firstOrNull()?.time?.toLong() ?: 0L
@@ -89,6 +97,12 @@ fun AnalysisGraphWidget(
         GraphHeaderRow(
             metric = metric,
             selectedPoint = selectedIndex?.let { telemetry.getOrNull(it) },
+            comparisonPoint = selectedIndex?.let { idx ->
+                if (compTelemetry.isNotEmpty()) {
+                    val compIdx = (idx.toFloat() / (telemetry.size - 1).coerceAtLeast(1) * (compTelemetry.size - 1)).toInt().coerceIn(0, compTelemetry.size - 1)
+                    compTelemetry.getOrNull(compIdx)
+                } else null
+            },
             startPointTime = startPointTime,
             maxValue = maxValue,
             minValue = minValue,
@@ -115,6 +129,7 @@ fun AnalysisGraphWidget(
             ) {
                 GraphCanvasArea(
                     telemetry = telemetry,
+                    compTelemetry = compTelemetry,
                     metric = metric,
                     minValue = minValue,
                     valueRange = valueRange,
@@ -126,6 +141,7 @@ fun AnalysisGraphWidget(
 
                 GraphTooltipBadge(
                     telemetry = telemetry,
+                    compTelemetry = compTelemetry,
                     metric = metric,
                     selectedIndex = selectedIndex,
                     startPointTime = startPointTime,
@@ -145,11 +161,13 @@ fun AnalysisGraphWidget(
 private fun GraphHeaderRow(
     metric: TelemetryMetric,
     selectedPoint: TelemetryPoint?,
+    comparisonPoint: TelemetryPoint?,
     startPointTime: Long,
     maxValue: Float,
     minValue: Float,
 ) {
     val labelStyle = MaterialTheme.typography.labelSmall
+    val primaryColor = Color(0xFFD71344)
 
     Row(
         modifier = Modifier
@@ -167,11 +185,23 @@ private fun GraphHeaderRow(
         if (selectedPoint != null) {
             val valStr = metric.formatValue(metric.extractValue(selectedPoint))
             val ptTimeMs = (selectedPoint.time.toLong() - startPointTime).coerceAtLeast(0L)
-            Text(
-                text = "$valStr @ ${formatGraphTime(ptTimeMs)}",
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color.Cyan,
-            )
+
+            if (comparisonPoint != null) {
+                val diff = metric.extractValue(selectedPoint) - metric.extractValue(comparisonPoint)
+                val diffStr = if (diff >= 0) "+${metric.formatValue(diff)}" else metric.formatValue(diff)
+
+                Text(
+                    text = "($diffStr)",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = primaryColor,
+                )
+            } else {
+                Text(
+                    text = "$valStr @ ${formatGraphTime(ptTimeMs)}",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = primaryColor,
+                )
+            }
         } else {
             val maxStr = metric.formatValue(maxValue)
             val minStr = metric.formatValue(minValue)
@@ -226,6 +256,7 @@ private fun GraphYAxisLabels(
 @Composable
 private fun GraphCanvasArea(
     telemetry: List<TelemetryPoint>,
+    compTelemetry: List<TelemetryPoint>,
     metric: TelemetryMetric,
     minValue: Float,
     valueRange: Float,
@@ -235,30 +266,39 @@ private fun GraphCanvasArea(
     bottomPaddingDp: Dp,
 ) {
     val labelColor = MaterialTheme.colorScheme.outline
+    val primaryColor = Color(0xFFD71344) // Soleil Red
+    val compColor = Color(0xFF00E5FF) // Cyan
 
     Canvas(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(telemetry.size) {
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        val xStep = size.width / (telemetry.size - 1).coerceAtLeast(1)
-                        val index = (offset.x / xStep).toInt().coerceIn(0, telemetry.size - 1)
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val totalSize = telemetry.size
+                    if (totalSize > 0 && size.width > 0) {
+                        val xStep = size.width.toFloat() / (totalSize - 1).coerceAtLeast(1)
+                        val index = (down.position.x / xStep).toInt().coerceIn(0, totalSize - 1)
                         onPointSelected(index)
-                    },
-                    onDragEnd = { onPointSelected(null) },
-                    onDragCancel = { onPointSelected(null) },
-                ) { change, _ ->
-                    val xStep = size.width / (telemetry.size - 1).coerceAtLeast(1)
-                    val index = (change.position.x / xStep).toInt().coerceIn(0, telemetry.size - 1)
-                    onPointSelected(index)
-                }
-            }
-            .pointerInput(telemetry.size) {
-                detectTapGestures { offset ->
-                    val xStep = size.width / (telemetry.size - 1).coerceAtLeast(1)
-                    val index = (offset.x / xStep).toInt().coerceIn(0, telemetry.size - 1)
-                    onPointSelected(index)
+                    }
+
+                    val pointer = down.id
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val dragChange = event.changes.firstOrNull { it.id == pointer } ?: break
+                        if (!dragChange.pressed) break
+
+                        if (dragChange.positionChange() != Offset.Zero) {
+                            dragChange.consume()
+                        }
+
+                        val totalSize = telemetry.size
+                        if (totalSize > 0 && size.width > 0) {
+                            val xStep = size.width.toFloat() / (totalSize - 1).coerceAtLeast(1)
+                            val index = (dragChange.position.x / xStep).toInt().coerceIn(0, totalSize - 1)
+                            onPointSelected(index)
+                        }
+                    }
                 }
             },
     ) {
@@ -268,15 +308,38 @@ private fun GraphCanvasArea(
         val bottomPx = bottomPaddingDp.toPx()
         val usableHeight = (canvasHeight - topPx - bottomPx).coerceAtLeast(1f)
 
-        val xStep = canvasWidth / (telemetry.size - 1).coerceAtLeast(1)
+        val totalPoints = telemetry.size
+        val maxRenderPoints = 1200
+        val step = (totalPoints / maxRenderPoints).coerceAtLeast(1)
 
-        val pixelPoints = telemetry.mapIndexed { index, point ->
-            val x = index * xStep
+        val renderIndices = if (step > 1) (0 until totalPoints step step) else 0 until totalPoints
+        val renderXStep = canvasWidth / (totalPoints - 1).coerceAtLeast(1)
+
+        val primaryPixelPoints = renderIndices.map { index ->
+            val point = telemetry[index]
+            val x = index * renderXStep
             val value = metric.extractValue(point)
             val percentage = (value - minValue) / valueRange
             val y = canvasHeight - bottomPx - (percentage * usableHeight)
             Offset(x, y)
         }
+
+        // Downsample comparison telemetry points to match canvas width
+        val compPixelPoints = if (compTelemetry.isNotEmpty()) {
+            val compTotal = compTelemetry.size
+            val compStep = (compTotal / maxRenderPoints).coerceAtLeast(1)
+            val compIndices = if (compStep > 1) (0 until compTotal step compStep) else 0 until compTotal
+            val compXStep = canvasWidth / (compTotal - 1).coerceAtLeast(1)
+
+            compIndices.map { index ->
+                val point = compTelemetry[index]
+                val x = index * compXStep
+                val value = metric.extractValue(point)
+                val percentage = (value - minValue) / valueRange
+                val y = canvasHeight - bottomPx - (percentage * usableHeight)
+                Offset(x, y)
+            }
+        } else emptyList()
 
         val gridYs = listOf(topPx, topPx + usableHeight / 2f, canvasHeight - bottomPx)
         for (y in gridYs) {
@@ -300,36 +363,57 @@ private fun GraphCanvasArea(
             )
         }
 
-        if (pixelPoints.size >= 2) {
-            val fillPath = Path().apply {
-                moveTo(pixelPoints.first().x, canvasHeight - bottomPx)
-                lineTo(pixelPoints.first().x, pixelPoints.first().y)
-                for (i in 1 until pixelPoints.size) {
-                    lineTo(pixelPoints[i].x, pixelPoints[i].y)
+        // Draw Comparison Lap Curve first (Magenta)
+        if (compPixelPoints.size >= 2) {
+            val compPath = Path().apply {
+                moveTo(compPixelPoints.first().x, compPixelPoints.first().y)
+                for (i in 1 until compPixelPoints.size) {
+                    lineTo(compPixelPoints[i].x, compPixelPoints[i].y)
                 }
-                lineTo(pixelPoints.last().x, canvasHeight - bottomPx)
+            }
+
+            drawPath(
+                path = compPath,
+                color = compColor,
+                style = Stroke(
+                    width = 2.dp.toPx(),
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round,
+                ),
+            )
+        }
+
+        // Draw Primary Lap Curve on top (Cyan + Fill)
+        if (primaryPixelPoints.size >= 2) {
+            val fillPath = Path().apply {
+                moveTo(primaryPixelPoints.first().x, canvasHeight - bottomPx)
+                lineTo(primaryPixelPoints.first().x, primaryPixelPoints.first().y)
+                for (i in 1 until primaryPixelPoints.size) {
+                    lineTo(primaryPixelPoints[i].x, primaryPixelPoints[i].y)
+                }
+                lineTo(primaryPixelPoints.last().x, canvasHeight - bottomPx)
                 close()
             }
 
             drawPath(
                 path = fillPath,
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color.Cyan.copy(alpha = 0.25f), Color.Transparent),
+                    colors = listOf(primaryColor.copy(alpha = 0.25f), Color.Transparent),
                     startY = topPx,
                     endY = canvasHeight - bottomPx,
                 ),
             )
 
             val graphPath = Path().apply {
-                moveTo(pixelPoints.first().x, pixelPoints.first().y)
-                for (i in 1 until pixelPoints.size) {
-                    lineTo(pixelPoints[i].x, pixelPoints[i].y)
+                moveTo(primaryPixelPoints.first().x, primaryPixelPoints.first().y)
+                for (i in 1 until primaryPixelPoints.size) {
+                    lineTo(primaryPixelPoints[i].x, primaryPixelPoints[i].y)
                 }
             }
 
             drawPath(
                 path = graphPath,
-                color = Color.Cyan,
+                color = primaryColor,
                 style = Stroke(
                     width = 2.5.dp.toPx(),
                     cap = StrokeCap.Round,
@@ -338,21 +422,43 @@ private fun GraphCanvasArea(
             )
         }
 
+        // Scrubbing indicator circles
         selectedIndex?.let { index ->
-            if (index in pixelPoints.indices) {
-                val point = pixelPoints[index]
+            if (index in 0 until totalPoints) {
+                val point = telemetry[index]
+                val x = index * renderXStep
+                val value = metric.extractValue(point)
+                val percentage = (value - minValue) / valueRange
+                val y = canvasHeight - bottomPx - (percentage * usableHeight)
+                val selPoint = Offset(x, y)
 
                 drawLine(
                     color = Color.White.copy(alpha = 0.7f),
-                    start = Offset(point.x, topPx),
-                    end = Offset(point.x, canvasHeight - bottomPx),
+                    start = Offset(selPoint.x, topPx),
+                    end = Offset(selPoint.x, canvasHeight - bottomPx),
                     strokeWidth = 1.5.dp.toPx(),
                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f),
                 )
 
-                drawCircle(color = Color.Cyan.copy(alpha = 0.35f), radius = 8.dp.toPx(), center = point)
-                drawCircle(color = Color.White, radius = 5.dp.toPx(), center = point)
-                drawCircle(color = Color.Cyan, radius = 3.dp.toPx(), center = point)
+                drawCircle(color = primaryColor.copy(alpha = 0.35f), radius = 8.dp.toPx(), center = selPoint)
+                drawCircle(color = Color.White, radius = 5.dp.toPx(), center = selPoint)
+                drawCircle(color = primaryColor, radius = 3.dp.toPx(), center = selPoint)
+
+                // Comparison point marker
+                if (compTelemetry.isNotEmpty()) {
+                    val compIdx = (index.toFloat() / (totalPoints - 1).coerceAtLeast(1) * (compTelemetry.size - 1)).toInt().coerceIn(0, compTelemetry.size - 1)
+                    val compPt = compTelemetry[compIdx]
+                    val compXStep = canvasWidth / (compTelemetry.size - 1).coerceAtLeast(1)
+                    val compX = compIdx * compXStep
+                    val compVal = metric.extractValue(compPt)
+                    val compPerc = (compVal - minValue) / valueRange
+                    val compY = canvasHeight - bottomPx - (compPerc * usableHeight)
+                    val compSelPt = Offset(compX, compY)
+
+                    drawCircle(color = compColor.copy(alpha = 0.35f), radius = 8.dp.toPx(), center = compSelPt)
+                    drawCircle(color = Color.White, radius = 5.dp.toPx(), center = compSelPt)
+                    drawCircle(color = compColor, radius = 3.dp.toPx(), center = compSelPt)
+                }
             }
         }
     }
@@ -361,12 +467,15 @@ private fun GraphCanvasArea(
 @Composable
 private fun GraphTooltipBadge(
     telemetry: List<TelemetryPoint>,
+    compTelemetry: List<TelemetryPoint>,
     metric: TelemetryMetric,
     selectedIndex: Int?,
     startPointTime: Long,
     topPaddingDp: Dp,
 ) {
     val labelStyle = MaterialTheme.typography.labelSmall
+    val primaryColor = Color(0xFFD71344) // Soleil Red
+    val compColor = Color(0xFF00E5FF) // Cyan
 
     selectedIndex?.let { index ->
         val selectedPt = telemetry.getOrNull(index)
@@ -375,6 +484,11 @@ private fun GraphTooltipBadge(
             val valStr = metric.formatValue(metric.extractValue(selectedPt))
             val ptTimeMs = (selectedPt.time.toLong() - startPointTime).coerceAtLeast(0L)
             val timeStr = formatGraphTime(ptTimeMs)
+
+            val compPt = if (compTelemetry.isNotEmpty()) {
+                val compIdx = (fraction * (compTelemetry.size - 1)).toInt().coerceIn(0, compTelemetry.size - 1)
+                compTelemetry.getOrNull(compIdx)
+            } else null
 
             val horizontalBias = (fraction * 2f - 1f).coerceIn(-0.85f, 0.85f)
 
@@ -389,24 +503,38 @@ private fun GraphTooltipBadge(
                         .padding(horizontal = 4.dp),
                     shape = RoundedCornerShape(6.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(1.dp, Color.Cyan.copy(alpha = 0.6f)),
+                    border = BorderStroke(1.dp, primaryColor.copy(alpha = 0.6f)),
                     shadowElevation = 4.dp,
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = valStr,
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = Color.Cyan,
-                        )
-                        Text(
-                            text = timeStr,
-                            style = labelStyle,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "$valStr",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = primaryColor,
+                            )
+                            Text(
+                                text = timeStr,
+                                style = labelStyle,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (compPt != null) {
+                            val compValStr = metric.formatValue(metric.extractValue(compPt))
+                            val diff = metric.extractValue(selectedPt) - metric.extractValue(compPt)
+                            val diffStr = if (diff >= 0) "+${metric.formatValue(diff)}" else metric.formatValue(diff)
+
+                            Text(
+                                text = "$compValStr ($diffStr)",
+                                style = labelStyle.copy(fontWeight = FontWeight.Bold),
+                                color = compColor,
+                            )
+                        }
                     }
                 }
             }

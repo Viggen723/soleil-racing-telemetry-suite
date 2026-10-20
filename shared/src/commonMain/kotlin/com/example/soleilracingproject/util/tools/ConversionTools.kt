@@ -49,7 +49,12 @@ object ConversionTools {
         )
     }
 
-// Normalize coordinates for drawing on to the Canvas Composable relative to size
+    // Converts acceleration to Gs
+    fun normalizeAccel(mPerSecSq: Float): Float {
+        return mPerSecSq / 9.80665f
+    }
+
+    // Normalize coordinates for drawing on to the Canvas Composable relative to size
     fun normalizeCoordinates(
         coords: List<LatLng?>,
         canvasWidth: Float,
@@ -66,8 +71,6 @@ object ConversionTools {
         val minLng = validCoords.minOf { it.longitude }
         val maxLng = validCoords.maxOf { it.longitude }
 
-        // Calculate real-world aspect ratio correction (KMP Safe)
-        // Convert average latitude to radians: degrees * (PI / 180)
         val avgLat = (minLat + maxLat) / 2f
         val avgLatRad = (avgLat * (PI / 180.0)).toFloat()
         val lngCorrection = cos(avgLatRad)
@@ -78,12 +81,10 @@ object ConversionTools {
         val availableWidth = (canvasWidth - (2 * padding)).coerceAtLeast(1f)
         val availableHeight = (canvasHeight - (2 * padding)).coerceAtLeast(1f)
 
-        // Uniform scaling: find which dimension is the bottleneck
         val scaleX = availableWidth / rangeLng
         val scaleY = availableHeight / rangeLat
         val uniformScale = minOf(scaleX, scaleY)
 
-        // Calculate offsets to center the track in the canvas
         val trackPixelWidth = rangeLng * uniformScale
         val trackPixelHeight = rangeLat * uniformScale
 
@@ -100,4 +101,3 @@ object ConversionTools {
         }
     }
 }
-

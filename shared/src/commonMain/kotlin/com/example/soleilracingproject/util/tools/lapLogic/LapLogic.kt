@@ -8,21 +8,26 @@ import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
 object LapLogic {
 
-    fun normalizeLon(lon: Double, lat: Double): Double {
-        return if (lat in 10.0..75.0 && lon > 0.0) -lon else lon
+    /** Normalizes longitude sign if logger omitted minus sign for Western Hemisphere coordinates */
+    fun normalizeLon(lon: Double, refLon: Double = 0.0): Double {
+        if (refLon < -20.0 && lon > 20.0 && abs(lon + refLon) < 5.0) return -lon
+        if (refLon > 20.0 && lon < -20.0 && abs(-lon - refLon) < 5.0) return -lon
+        return lon
     }
 
+    /** Distance in meters between two GPS coordinates */
     fun haversineDistanceMeters(
         lat1: Double, lon1: Double,
         lat2: Double, lon2: Double
     ): Double {
-        val nLon1 = normalizeLon(lon1, lat1)
-        val nLon2 = normalizeLon(lon2, lat2)
+        val nLon1 = lon1
+        val nLon2 = normalizeLon(lon2, lon1)
         val earthRadiusMeters = 6371000.0
         val dLat = (lat2 - lat1) * (PI / 180.0)
         val dLon = (nLon2 - nLon1) * (PI / 180.0)
@@ -37,9 +42,9 @@ object LapLogic {
         ptLat: Double, ptLon: Double,
         gate: GpsGate
     ): Double {
-        val nPtLon = normalizeLon(ptLon, ptLat)
-        val nG1Lon = normalizeLon(gate.lon1, gate.lat1)
-        val nG2Lon = normalizeLon(gate.lon2, gate.lat2)
+        val nPtLon = normalizeLon(ptLon, gate.lon1)
+        val nG1Lon = gate.lon1
+        val nG2Lon = normalizeLon(gate.lon2, gate.lon1)
 
         val radLat = ptLat * (PI / 180.0)
         val cosLat = cos(radLat)
@@ -62,19 +67,131 @@ object LapLogic {
         return haversineDistanceMeters(ptLat, nPtLon, projLat, projLon)
     }
 
+    fun calculateBearingDegrees(
+        prevLat: Double, prevLon: Double,
+        currLat: Double, currLon: Double
+    ): Float {
+        val nLon1 = prevLon
+        val nLon2 = normalizeLon(currLon, prevLon)
+        val dLon = (nLon2 - nLon1) * (PI / 180.0)
+        val y = sin(dLon) * cos(currLat * PI / 180.0)
+        val x = cos(prevLat * PI / 180.0) * sin(currLat * PI / 180.0) -
+                sin(prevLat * PI / 180.0) * cos(currLat * PI / 180.0) * cos(dLon)
+        val bearing = atan2(y, x) * (180.0 / PI)
+        return ((bearing + 360.0) % 360.0).toFloat()
+    }
+
+    fun inferTargetBearingDegrees(
+        points: List<TelemetryPoint>,
+        gate: GpsGate
+    ): Float? {
+        if (gate.targetBearingDegrees != null) {
+            return gate.targetBearingDegrees
+        }
+        if (points.size < 2) return null
+
+        val candidateHeadings = mutableListOf<Float>()
+
+        for (i in 1 until points.size) {
+            val prev = points[i - 1]
+            val curr = points[i]
+
+            val dist = distanceToGateSegmentMeters(curr.latitude.toDouble(), curr.longitude.toDouble(), gate)
+            if (dist <= 50.0) {
+                val motionDx = curr.longitude.toDouble() - prev.longitude.toDouble()
+                val motionDy = curr.latitude.toDouble() - prev.latitude.toDouble()
+                if (abs(motionDx) > 1e-7 || abs(motionDy) > 1e-7) {
+                    val bearing = calculateBearingDegrees(
+                        prev.latitude.toDouble(), prev.longitude.toDouble(),
+                        curr.latitude.toDouble(), curr.longitude.toDouble()
+                    )
+                    candidateHeadings.add(bearing)
+                }
+            }
+        }
+
+        if (candidateHeadings.isEmpty()) return null
+
+        val bins = IntArray(36)
+        for (heading in candidateHeadings) {
+            val binIndex = ((heading.roundToInt() % 360 + 360) % 360) / 10
+            bins[binIndex]++
+        }
+
+        val maxBin = bins.indices.maxByOrNull { bins[it] } ?: 0
+        if (bins[maxBin] == 0) return null
+
+        val targetBinCenter = maxBin * 10f + 5f
+        val dominantHeadings = candidateHeadings.filter { heading ->
+            val diff = abs(heading - targetBinCenter)
+            val angleDiff = if (diff > 180f) 360f - diff else diff
+            angleDiff <= 45f
+        }
+
+        if (dominantHeadings.isEmpty()) return null
+
+        var sumSin = 0.0
+        var sumCos = 0.0
+        for (h in dominantHeadings) {
+            val rad = h * (PI / 180.0)
+            sumSin += sin(rad)
+            sumCos += cos(rad)
+        }
+
+        val meanRad = atan2(sumSin, sumCos)
+        val meanDeg = (meanRad * (180.0 / PI) + 360.0) % 360.0
+        return meanDeg.toFloat()
+    }
+
+    fun isForwardCrossing(
+        prev: TelemetryPoint,
+        curr: TelemetryPoint,
+        gate: GpsGate,
+        maxAngleDiffDegrees: Float = 75f
+    ): Boolean {
+        val ax = normalizeLon(prev.longitude.toDouble(), gate.lon1)
+        val ay = prev.latitude.toDouble()
+        val bx = normalizeLon(curr.longitude.toDouble(), gate.lon1)
+        val by = curr.latitude.toDouble()
+
+        val motionDx = bx - ax
+        val motionDy = by - ay
+
+        if (abs(motionDx) < 1e-9 && abs(motionDy) < 1e-9) return true
+
+        val carBearing = calculateBearingDegrees(ay, ax, by, bx)
+
+        val target = if (gate.targetBearingDegrees != null) {
+            (gate.targetBearingDegrees + 360f) % 360f
+        } else {
+            val cx = gate.lon1
+            val cy = gate.lat1
+            val dx = normalizeLon(gate.lon2, gate.lon1)
+            val dy = gate.lat2
+            val gateLineBearing = calculateBearingDegrees(cy, cx, dy, dx)
+            (gateLineBearing + 90f) % 360f
+        }
+
+        val diff = abs(carBearing - target)
+        val angleDiff = if (diff > 180f) 360f - diff else diff
+
+        return angleDiff <= maxAngleDiffDegrees
+    }
+
     fun hasCrossedGpsGate(
         previousPoint: TelemetryPoint?,
         currentPoint: TelemetryPoint,
-        finishGate: GpsGate?
+        finishGate: GpsGate?,
+        enforceDirection: Boolean = true
     ): Boolean {
         if (previousPoint == null || finishGate == null) return false
-        val ax = normalizeLon(previousPoint.longitude.toDouble(), previousPoint.latitude.toDouble())
+        val ax = normalizeLon(previousPoint.longitude.toDouble(), finishGate.lon1)
         val ay = previousPoint.latitude.toDouble()
-        val bx = normalizeLon(currentPoint.longitude.toDouble(), currentPoint.latitude.toDouble())
+        val bx = normalizeLon(currentPoint.longitude.toDouble(), finishGate.lon1)
         val by = currentPoint.latitude.toDouble()
-        val cx = normalizeLon(finishGate.lon1, finishGate.lat1)
+        val cx = finishGate.lon1
         val cy = finishGate.lat1
-        val dx = normalizeLon(finishGate.lon2, finishGate.lat2)
+        val dx = normalizeLon(finishGate.lon2, finishGate.lon1)
         val dy = finishGate.lat2
 
         if (!validGps(ay, ax) || !validGps(by, bx) ||
@@ -86,12 +203,19 @@ object LapLogic {
         val cda = orientation(cx, cy, dx, dy, ax, ay)
         val cdb = orientation(cx, cy, dx, dy, bx, by)
 
-        if (abc * abd < 0 && cda * cdb < 0) return true
-
-        return (abc == 0 && onSegment(ax, ay, bx, by, cx, cy)) ||
+        val crossedLine = (abc * abd < 0 && cda * cdb < 0) ||
+            (abc == 0 && onSegment(ax, ay, bx, by, cx, cy)) ||
             (abd == 0 && onSegment(ax, ay, bx, by, dx, dy)) ||
             (cda == 0 && onSegment(cx, cy, dx, dy, ax, ay)) ||
             (cdb == 0 && onSegment(cx, cy, dx, dy, bx, by))
+
+        if (!crossedLine) return false
+
+        if (enforceDirection && !isForwardCrossing(previousPoint, currentPoint, finishGate)) {
+            return false
+        }
+
+        return true
     }
 
     private fun validGps(latitude: Double, longitude: Double): Boolean =
@@ -163,15 +287,18 @@ object LapLogic {
         if (abs(dLat) < 1e-7 && abs(dLon) < 1e-7) return null
 
         val len = sqrt(dLat * dLat + dLon * dLon)
-        val widthDeg = 0.0005
+        val widthDeg = 0.001
         val perpLat = (-dLon / len) * widthDeg
         val perpLon = (dLat / len) * widthDeg
+
+        val targetHeading = calculateBearingDegrees(refLat, refLon, nextLat, nextLon)
 
         return GpsGate(
             lat1 = refLat - perpLat,
             lon1 = refLon - perpLon,
             lat2 = refLat + perpLat,
             lon2 = refLon + perpLon,
+            targetBearingDegrees = targetHeading
         )
     }
 
@@ -180,7 +307,8 @@ object LapLogic {
         points: List<TelemetryPoint>,
         finishGate: GpsGate? = null,
         minLapDurationMs: Long = 15000L,
-        maxProximityMeters: Double = 35.0
+        enforceDirection: Boolean = true,
+        discardOutInLaps: Boolean = true
     ): List<Lap> {
         if (points.size < 2) {
             return listOf(
@@ -193,7 +321,7 @@ object LapLogic {
             )
         }
 
-        val gateToUse: GpsGate = finishGate ?: autoGenerateGate(points) ?: return listOf(
+        val baseGate: GpsGate = finishGate ?: autoGenerateGate(points) ?: return listOf(
             buildLap(
                 sessionId = sessionId,
                 lapNumber = 1,
@@ -202,31 +330,37 @@ object LapLogic {
             )
         )
 
+        val inferredBearing = inferTargetBearingDegrees(points, baseGate)
+        val gateToUse = if (baseGate.targetBearingDegrees == null && inferredBearing != null) {
+            baseGate.copy(targetBearingDegrees = inferredBearing)
+        } else {
+            baseGate
+        }
+
         val laps = mutableListOf<Lap>()
         val currentLapPoints = mutableListOf<TelemetryPoint>()
         var lapNumber = 1
-        var lastCrossingTime = points.first().time
-
-        currentLapPoints.add(points.first())
+        var lastCrossingTime = 0L
+        var hasCrossedFirstGate = false
 
         for (i in 1 until points.size) {
             val prev = points[i - 1]
             val curr = points[i]
-            currentLapPoints.add(curr)
 
-            val timeSinceLastCrossing = (curr.time - lastCrossingTime).toLong()
+            val isCrossing = hasCrossedGpsGate(prev, curr, gateToUse, enforceDirection)
 
-            val isSegmentCrossing = hasCrossedGpsGate(prev, curr, gateToUse)
-            val distanceToGateSegment = distanceToGateSegmentMeters(
-                curr.latitude.toDouble(), curr.longitude.toDouble(),
-                gateToUse
-            )
-            val isProximityCrossing = distanceToGateSegment <= maxProximityMeters
+            if (discardOutInLaps && !hasCrossedFirstGate) {
+                if (isCrossing) {
+                    hasCrossedFirstGate = true
+                    lastCrossingTime = curr.time.toLong()
+                    currentLapPoints.clear()
+                    currentLapPoints.add(curr)
+                }
+            } else {
+                currentLapPoints.add(curr)
+                val timeSinceLastCrossing = curr.time.toLong() - lastCrossingTime
 
-            val isCrossing = isSegmentCrossing || isProximityCrossing
-
-            if (isCrossing) {
-                if (timeSinceLastCrossing >= minLapDurationMs) {
+                if (isCrossing && timeSinceLastCrossing >= minLapDurationMs) {
                     laps.add(
                         buildLap(
                             sessionId = sessionId,
@@ -238,16 +372,23 @@ object LapLogic {
 
                     currentLapPoints.clear()
                     currentLapPoints.add(curr)
-                    lastCrossingTime = curr.time
-                } else if (laps.isEmpty() && currentLapPoints.size > 1 && timeSinceLastCrossing < minLapDurationMs) {
-                    currentLapPoints.clear()
-                    currentLapPoints.add(curr)
-                    lastCrossingTime = curr.time
+                    lastCrossingTime = curr.time.toLong()
+                    hasCrossedFirstGate = true
                 }
             }
         }
 
-        if (currentLapPoints.size >= 2) {
+        if (laps.isEmpty() && currentLapPoints.size >= 2) {
+            val duration = (currentLapPoints.last().time - currentLapPoints.first().time).toLong()
+            laps.add(
+                buildLap(
+                    sessionId = sessionId,
+                    lapNumber = 1,
+                    points = currentLapPoints.toList(),
+                    durationMs = duration
+                )
+            )
+        } else if (!discardOutInLaps && currentLapPoints.size >= 2) {
             val lapDuration = (currentLapPoints.last().time - currentLapPoints.first().time).toLong()
             laps.add(
                 buildLap(
@@ -255,16 +396,6 @@ object LapLogic {
                     lapNumber = lapNumber,
                     points = currentLapPoints.toList(),
                     durationMs = lapDuration
-                )
-            )
-        } else if (laps.isEmpty()) {
-            val duration = (points.last().time - points.first().time).toLong()
-            laps.add(
-                buildLap(
-                    sessionId = sessionId,
-                    lapNumber = 1,
-                    points = points,
-                    durationMs = duration
                 )
             )
         }

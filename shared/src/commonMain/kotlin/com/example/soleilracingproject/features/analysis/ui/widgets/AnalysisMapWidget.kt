@@ -51,14 +51,24 @@ fun AnalysisMapWidget(
     selectedIndex: Int?,
     onPointSelected: (Int?) -> Unit,
     modifier: Modifier = Modifier,
+    comparisonLap: Lap? = null,
 ) {
     val lapPoints: List<TelemetryPoint> = remember(lap) {
         lap?.telemetryPoints ?: emptyList()
     }
+    val compPoints: List<TelemetryPoint> = remember(comparisonLap) {
+        comparisonLap?.telemetryPoints ?: emptyList()
+    }
 
-    val coords: List<LatLng> = remember(lapPoints) {
+    val lapCoords: List<LatLng> = remember(lapPoints) {
         lapPoints.map { LatLng(it.latitude, it.longitude) }
     }
+    val compCoords: List<LatLng> = remember(compPoints) {
+        compPoints.map { LatLng(it.latitude, it.longitude) }
+    }
+
+    val primaryColor = Color(0xFFD71344) // Soleil Red
+    val comparisonColor = Color(0xFF00E5FF) // Cyan
 
     // Transform State for the moving map and zooming
     var zoomLevel by remember { mutableFloatStateOf(1f) }
@@ -69,7 +79,11 @@ fun AnalysisMapWidget(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
-        if (coords.size < 2) {
+        val allCoords = remember(lapCoords, compCoords) {
+            lapCoords + compCoords
+        }
+
+        if (allCoords.size < 2) {
             Text(
                 text = "No GPS Telemetry",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -82,12 +96,19 @@ fun AnalysisMapWidget(
         val widthPx = constraints.maxWidth.toFloat()
         val heightPx = constraints.maxHeight.toFloat()
 
-        val graphPoints: List<Offset> = remember(coords, widthPx, heightPx) {
+        val allGraphPoints: List<Offset> = remember(allCoords, widthPx, heightPx) {
             if ((widthPx > 0f) && (heightPx > 0f)) {
-                normalizeCoordinates(coords, widthPx, heightPx)
+                normalizeCoordinates(allCoords, widthPx, heightPx)
             } else {
                 emptyList()
             }
+        }
+
+        val graphPoints = remember(allGraphPoints, lapCoords) {
+            allGraphPoints.take(lapCoords.size)
+        }
+        val compGraphPoints = remember(allGraphPoints, lapCoords) {
+            allGraphPoints.drop(lapCoords.size)
         }
 
         val trackPath: Path? = remember(graphPoints) {
@@ -98,6 +119,20 @@ fun AnalysisMapWidget(
                     moveTo(graphPoints.first().x, graphPoints.first().y)
                     for (i in 1 until graphPoints.size) {
                         lineTo(graphPoints[i].x, graphPoints[i].y)
+                    }
+                    close()
+                }
+            }
+        }
+
+        val compTrackPath: Path? = remember(compGraphPoints) {
+            if (compGraphPoints.size < 2) {
+                null
+            } else {
+                Path().apply {
+                    moveTo(compGraphPoints.first().x, compGraphPoints.first().y)
+                    for (i in 1 until compGraphPoints.size) {
+                        lineTo(compGraphPoints[i].x, compGraphPoints[i].y)
                     }
                     close()
                 }
@@ -156,7 +191,7 @@ fun AnalysisMapWidget(
                     }
                 },
         ) {
-            if ((trackPath == null) || (graphPoints.isEmpty())) return@Canvas
+            if ((trackPath == null && compTrackPath == null) || (graphPoints.isEmpty() && compGraphPoints.isEmpty())) return@Canvas
 
             withTransform(
                 transformBlock = {
@@ -170,16 +205,33 @@ fun AnalysisMapWidget(
                     strokeWidth = 1f / zoomLevel,
                 )
 
-                drawPath(
-                    path = trackPath,
-                    color = Color.Red,
-                    style = Stroke(
-                        width = 6f / zoomLevel,
-                        cap = StrokeCap.Round,
-                        join = StrokeJoin.Round,
-                    ),
-                )
+                // Draw Comparison Lap path first (Magenta)
+                compTrackPath?.let { path ->
+                    drawPath(
+                        path = path,
+                        color = comparisonColor,
+                        style = Stroke(
+                            width = 5f / zoomLevel,
+                            cap = StrokeCap.Round,
+                            join = StrokeJoin.Round,
+                        ),
+                    )
+                }
 
+                // Draw Primary Lap path on top (Cyan or Red)
+                trackPath?.let { path ->
+                    drawPath(
+                        path = path,
+                        color = primaryColor,
+                        style = Stroke(
+                            width = 6f / zoomLevel,
+                            cap = StrokeCap.Round,
+                            join = StrokeJoin.Round,
+                        ),
+                    )
+                }
+
+                // Start/Finish Line
                 if (graphPoints.size >= 2) {
                     val startPoint = graphPoints[0]
                     val nextPoint = graphPoints[1]
@@ -208,12 +260,17 @@ fun AnalysisMapWidget(
                     )
                 }
 
-                // Use the passed-in selectedIndex
+                // Selected point markers
                 selectedIndex?.let { index ->
+                    if (index in compGraphPoints.indices) {
+                        val compPointOffset = compGraphPoints[index]
+                        drawCircle(color = Color.White, radius = 9f / zoomLevel, center = compPointOffset)
+                        drawCircle(color = comparisonColor, radius = 5f / zoomLevel, center = compPointOffset)
+                    }
                     if (index in graphPoints.indices) {
-                        val point = graphPoints[index]
-                        drawCircle(color = Color.White, radius = 10f / zoomLevel, center = point)
-                        drawCircle(color = Color.Red, radius = 6f / zoomLevel, center = point)
+                        val pointOffset = graphPoints[index]
+                        drawCircle(color = Color.White, radius = 10f / zoomLevel, center = pointOffset)
+                        drawCircle(color = primaryColor, radius = 6f / zoomLevel, center = pointOffset)
                     }
                 }
             }
@@ -221,7 +278,8 @@ fun AnalysisMapWidget(
 
         selectedIndex?.let { index ->
             val point = lapPoints.getOrNull(index)
-            if (point != null) {
+            val compPoint = compPoints.getOrNull(index)
+            if (point != null || compPoint != null) {
                 Card(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -232,27 +290,22 @@ fun AnalysisMapWidget(
                     ),
                 ) {
                     Column(modifier = Modifier.padding(8.dp)) {
-                        Text(
-                            text = "Point #${index + 1}",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = "Speed: ${point.speed.formatOneDecimal()} mp/h",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp,
-                        )
-                        Text(
-                            text = "X-Accel: ${point.accelX.formatOneDecimal()} G",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp,
-                        )
-                        Text(
-                            text = "Y-Accel: ${point.accelY.formatOneDecimal()} G",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp,
-                        )
+                        if (point != null) {
+                            Text(
+                                text = "${point.speed.formatOneDecimal()} mp/h | X:${point.accelX.formatOneDecimal()}G Y:${point.accelY.formatOneDecimal()}G",
+                                color = primaryColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                        if (compPoint != null) {
+                            Text(
+                                text = "${compPoint.speed.formatOneDecimal()} mp/h | X:${compPoint.accelX.formatOneDecimal()}G Y:${compPoint.accelY.formatOneDecimal()}G",
+                                color = comparisonColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
                     }
                 }
             }

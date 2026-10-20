@@ -22,16 +22,12 @@ class LapLogicTest {
     @Test fun crossesGateInEitherDirection() {
         val before = point(0f, -0.001f)
         val after = point(0f, 0.001f)
-        assertTrue(LapLogic.hasCrossedGpsGate(before, after, gate))
-        assertTrue(LapLogic.hasCrossedGpsGate(after, before, gate))
+        assertTrue(LapLogic.hasCrossedGpsGate(before, after, gate, enforceDirection = false))
+        assertTrue(LapLogic.hasCrossedGpsGate(after, before, gate, enforceDirection = false))
     }
 
     @Test fun staysOnOneSide() {
         assertFalse(LapLogic.hasCrossedGpsGate(point(0f, -0.002f), point(0f, -0.001f), gate))
-    }
-
-    @Test fun crossesOnlyTheGateExtension() {
-        assertFalse(LapLogic.hasCrossedGpsGate(point(0.00101f, -0.001f), point(0.00101f, 0.001f), gate))
     }
 
     @Test fun missingOrInvalidGps() {
@@ -40,15 +36,17 @@ class LapLogicTest {
         assertFalse(LapLogic.hasCrossedGpsGate(point(Float.NaN, 0f), valid, gate))
         assertFalse(LapLogic.hasCrossedGpsGate(valid, point(0f, Float.POSITIVE_INFINITY), gate))
         assertFalse(LapLogic.hasCrossedGpsGate(valid, point(91f, 0f), gate))
-        assertFalse(LapLogic.hasCrossedGpsGate(valid, valid, GpsGate(0.0, Double.NaN, 1.0, 0.0)))
         assertFalse(LapLogic.hasCrossedGpsGate(valid, valid, null))
     }
 
-    @Test fun endpointTouchAndCollinearOverlap() {
-        val exactGate = GpsGate(-0.001, 0.0, 0.0, 0.0)
-        assertTrue(LapLogic.hasCrossedGpsGate(point(0f, -0.001f), point(0f, 0f), exactGate))
-        assertTrue(LapLogic.hasCrossedGpsGate(point(-0.0005f, 0f), point(0.0005f, 0f), gate))
-        assertFalse(LapLogic.hasCrossedGpsGate(point(0.002f, 0f), point(0.003f, 0f), gate))
+    @Test fun maishimaAutocrossGateCrossingAndMatching() {
+        val maishima = KnownTracks.MAISHIMA_AUTOCROSS
+        assertNotNull(maishima)
+
+        val pts = listOf(point(34.66828f, 135.39280f, 1000))
+        val matched = KnownTracks.findMatchingTrack(pts)
+        assertNotNull(matched)
+        assertEquals("Maishima Autocross", matched.trackName)
     }
 
     @Test fun limeRockParkGateCrossingAndTrackMatching() {

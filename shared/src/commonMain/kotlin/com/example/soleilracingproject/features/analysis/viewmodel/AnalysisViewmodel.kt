@@ -36,13 +36,26 @@ class AnalysisViewModel(
             val uniqueSessionId = "imported_session_$now"
 
             val matchedTrack = KnownTracks.findMatchingTrack(parsedPoints)
-            val gateToUse = matchedTrack?.startFinishGate
+            val presetGate = matchedTrack?.startFinishGate
+            val autoGate = LapLogic.autoGenerateGate(parsedPoints)
+            val gateToUse = presetGate ?: autoGate
 
-            val laps = LapLogic.splitSessionIntoLaps(
+            var laps = LapLogic.splitSessionIntoLaps(
                 sessionId = uniqueSessionId,
                 points = parsedPoints,
                 finishGate = gateToUse,
             )
+
+            if (laps.size <= 1 && autoGate != null && parsedPoints.size > 200) {
+                val autoLaps = LapLogic.splitSessionIntoLaps(
+                    sessionId = uniqueSessionId,
+                    points = parsedPoints,
+                    finishGate = autoGate,
+                )
+                if (autoLaps.size > 1) {
+                    laps = autoLaps
+                }
+            }
 
             val newSession = Session(
                 id = uniqueSessionId,
@@ -55,6 +68,14 @@ class AnalysisViewModel(
             )
 
             insertSession(newSession)
+        }
+    }
+
+    fun renameSession(session: Session, newTitle: String) {
+        val trimmed = newTitle.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            repository?.updateSession(session.copy(title = trimmed))
         }
     }
 

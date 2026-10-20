@@ -34,6 +34,10 @@ class AnalysisRepository(
         sessionDao.deleteSessionById(session.id)
     }
 
+    suspend fun updateSession(session: Session) {
+        sessionDao.updateSession(session.toEntity())
+    }
+
     suspend fun addSession(session: Session) {
         sessionDao.insertSession(session.toEntity())
 

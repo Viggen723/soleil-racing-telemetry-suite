@@ -69,6 +69,10 @@ fun AnalysisContent(
         mutableStateOf(selectedSession?.laps?.firstOrNull()?.lapNumber)
     }
 
+    var comparisonLapNumber by remember(selectedSession) {
+        mutableStateOf<Int?>(null)
+    }
+
     LaunchedEffect(sessions) {
         selectedSession = if (sessions.isNotEmpty()) {
             if ((selectedSession == null) || sessions.none { it.id == selectedSession?.id }) {
@@ -83,6 +87,8 @@ fun AnalysisContent(
 
     val displayLap = selectedSession?.laps?.firstOrNull { it.lapNumber == selectedLapNumber }
         ?: selectedSession?.laps?.firstOrNull()
+
+    val comparisonLap = selectedSession?.laps?.firstOrNull { it.lapNumber == comparisonLapNumber }
 
     var globalSelectedIndex by remember { mutableStateOf<Int?>(null) }
     var currentMetric by remember { mutableStateOf(TelemetryMetric.SPEED) }
@@ -118,6 +124,7 @@ fun AnalysisContent(
             onSessionSelected = { chosenSession ->
                 selectedSession = chosenSession
                 selectedLapNumber = chosenSession.laps.firstOrNull()?.lapNumber
+                comparisonLapNumber = null
                 showSessionDialog = false
                 globalSelectedIndex = null
             },
@@ -127,6 +134,7 @@ fun AnalysisContent(
                 if (selectedSession?.id == sessionToDelete.id) {
                     selectedSession = sessions.firstOrNull { it.id != sessionToDelete.id }
                     selectedLapNumber = selectedSession?.laps?.firstOrNull()?.lapNumber
+                    comparisonLapNumber = null
                     globalSelectedIndex = null
                 }
             },
@@ -137,7 +145,7 @@ fun AnalysisContent(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // --- HEADER ROW (Title & CSV Import) ---
@@ -171,15 +179,24 @@ fun AnalysisContent(
             selectedSession = selectedSession,
             displayLap = displayLap,
             onChangeSessionClick = { showSessionDialog = true },
+            onRenameSession = { session, newTitle -> viewModel.renameSession(session, newTitle) },
         )
 
-        // Lap Selector Row
+
         selectedSession?.let { session ->
             LapSelectorRow(
                 laps = session.laps,
                 selectedLapNumber = displayLap?.lapNumber,
+                comparisonLapNumber = comparisonLapNumber,
                 onLapSelected = { lapNum ->
                     selectedLapNumber = lapNum
+                    if (comparisonLapNumber == lapNum) {
+                        comparisonLapNumber = null
+                    }
+                    globalSelectedIndex = null
+                },
+                onComparisonLapSelected = { lapNum ->
+                    comparisonLapNumber = lapNum
                     globalSelectedIndex = null
                 },
             )
@@ -189,7 +206,7 @@ fun AnalysisContent(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp),
+                .height(240.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -197,6 +214,28 @@ fun AnalysisContent(
         ) {
             AnalysisMapWidget(
                 lap = displayLap,
+                comparisonLap = comparisonLap,
+                selectedIndex = globalSelectedIndex,
+                onPointSelected = { globalSelectedIndex = it },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+
+        // Graph Widget
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
+        ) {
+            AnalysisGraphWidget(
+                lap = displayLap,
+                comparisonLap = comparisonLap,
+                metric = currentMetric,
                 selectedIndex = globalSelectedIndex,
                 onPointSelected = { globalSelectedIndex = it },
                 modifier = Modifier.fillMaxSize(),
@@ -220,25 +259,6 @@ fun AnalysisContent(
                     Text(metric.title)
                 }
             }
-        }
-
-        // Graph Widget
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ),
-        ) {
-            AnalysisGraphWidget(
-                lap = displayLap,
-                metric = currentMetric,
-                selectedIndex = globalSelectedIndex,
-                onPointSelected = { globalSelectedIndex = it },
-                modifier = Modifier.fillMaxSize(),
-            )
         }
     }
 }

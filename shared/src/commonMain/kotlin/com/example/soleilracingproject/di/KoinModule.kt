@@ -10,7 +10,7 @@ import org.koin.dsl.module
 
 // https://www.youtube.com/watch?v=TAKZy3uQTdE for a video on dependency injection (di)
 val sharedModule = module {
-    single { HudViewModel(get(), get(), getOrNull(), getOrNull()) }
+    factory { HudViewModel(get(), get(), getOrNull(), getOrNull()) }
     single { AnalysisRepository(get(), get(), get()) }
     factory { AnalysisViewModel(getOrNull()) }
     single { GarageRepository(get()) }
