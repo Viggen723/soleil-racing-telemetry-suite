@@ -9,7 +9,7 @@ enum class TelemetryMetric(
     val unit: String,
     val extractValue: (TelemetryPoint) -> Float,
 ) {
-    SPEED("Speed (km/h)", "km/h", { point -> point.speed }),
+    SPEED("Speed (mph)", "mph", { point -> point.speed }),
     ACCEL_X("X-Accel (G)", "G", { point -> point.accelX }),
     ACCEL_Y("Y-Accel (G)", "G", { point -> point.accelY });
 

@@ -31,12 +31,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.soleilracingproject.features.analysis.ui.SessionComponents.SessionHighlightsCard
-import com.example.soleilracingproject.features.analysis.ui.SessionComponents.SessionSelectionDialog
+import com.example.soleilracingproject.features.analysis.ui.sessionComponents.SessionHighlightsCard
+import com.example.soleilracingproject.features.analysis.ui.sessionComponents.SessionSelectionDialog
 import com.example.soleilracingproject.features.analysis.ui.widgets.AnalysisGraphWidget
 import com.example.soleilracingproject.features.analysis.ui.widgets.AnalysisMapWidget
 import com.example.soleilracingproject.features.analysis.viewmodel.AnalysisViewModel
 import com.example.soleilracingproject.model.analysis.Session
+import com.example.soleilracingproject.model.garage.Car
 import io.github.vinceglb.filekit.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.core.PickerMode
 import io.github.vinceglb.filekit.core.PickerType
@@ -48,9 +49,11 @@ fun AnalysisView(
     modifier: Modifier = Modifier,
 ) {
     val sessions by viewModel.sessionsState.collectAsStateWithLifecycle()
+    val garageCars by viewModel.garageCars.collectAsStateWithLifecycle()
 
     AnalysisContent(
         sessions = sessions,
+        garageCars = garageCars,
         viewModel = viewModel,
         modifier = modifier,
     )
@@ -59,6 +62,7 @@ fun AnalysisView(
 @Composable
 fun AnalysisContent(
     sessions: List<Session>,
+    garageCars: List<Car> = emptyList(),
     viewModel: AnalysisViewModel,
     modifier: Modifier = Modifier,
 ) {
@@ -180,6 +184,8 @@ fun AnalysisContent(
             displayLap = displayLap,
             onChangeSessionClick = { showSessionDialog = true },
             onRenameSession = { session, newTitle -> viewModel.renameSession(session, newTitle) },
+            onUpdateVehicle = { session, newVehicle -> viewModel.updateSessionVehicle(session, newVehicle) },
+            garageCars = garageCars,
         )
 
 

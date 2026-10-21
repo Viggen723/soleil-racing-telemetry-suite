@@ -1,6 +1,5 @@
 package com.example.soleilracingproject.features.NavHost
 
-import HudViewModel
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -9,10 +8,12 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.soleilracingproject.features.analysis.ui.AnalysisView
-import com.example.soleilracingproject.features.hud.ui.HudView
+import com.example.soleilracingproject.features.analysis.viewmodel.AnalysisViewModel
 import com.example.soleilracingproject.features.garage.ui.GarageView
 import com.example.soleilracingproject.features.garage.viewmodel.GarageViewmodel
-import org.koin.compose.koinInject
+import com.example.soleilracingproject.features.hud.ui.HudView
+import com.example.soleilracingproject.features.hud.viewmodel.HudViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun MainNavHost(
@@ -22,15 +23,14 @@ fun MainNavHost(
     onFocusModeChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    // Created once here, outside the screens, so changing tabs doesn't rebuild it
-    val hudViewModel: HudViewModel = koinInject()
+    val hudViewModel: HudViewModel = koinViewModel()
+
     NavHost(
         navController = navHostController,
         startDestination = startDestination,
         modifier = modifier
     ) {
         composable<Route.Hud> {
-
             HudView(
                 viewModel = hudViewModel,
                 onUpdateTopBarActions = onUpdateTopBarActions,
@@ -39,14 +39,15 @@ fun MainNavHost(
         }
 
         composable<Route.Analysis> {
-            val analysisViewModel: com.example.soleilracingproject.features.analysis.viewmodel.AnalysisViewModel = koinInject()
+            val analysisViewModel: AnalysisViewModel = koinViewModel()
             LaunchedEffect(Unit) {
                 onUpdateTopBarActions(null)
             }
             AnalysisView(viewModel = analysisViewModel)
         }
+
         composable<Route.Garage> {
-            val garageViewmodel: GarageViewmodel = koinInject()
+            val garageViewmodel: GarageViewmodel = koinViewModel()
             LaunchedEffect(Unit) {
                 onUpdateTopBarActions(null)
                 onFocusModeChange(false)

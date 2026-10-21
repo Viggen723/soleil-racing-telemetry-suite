@@ -14,14 +14,20 @@ import kotlin.random.Random
 
 class GarageViewmodel(private val repository: GarageRepository) : ViewModel() {
     val cars = repository.cars.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val selectedCarId = repository.selectedCarId.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     private val _isSaving = MutableStateFlow(false)
     val isSaving = _isSaving.asStateFlow()
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
+    fun selectCar(carId: String?) {
+        repository.selectCar(carId)
+    }
+
     fun addCar(car: Car, onSaved: () -> Unit) = write(onSaved) {
-        // Same supplied-string ID style as sessions and laps; edits keep this ID.
-        repository.saveCar(car.copy(id = "car_${Random.nextLong().toString(16)}"))
+        val newId = "car_${Random.nextLong().toString(16)}"
+        repository.saveCar(car.copy(id = newId))
     }
 
     fun editCar(car: Car, onSaved: () -> Unit) = write(onSaved) { repository.updateCar(car) }

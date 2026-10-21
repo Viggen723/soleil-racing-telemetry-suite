@@ -1,4 +1,4 @@
-package com.example.soleilracingproject.features.analysis.ui.SessionComponents
+package com.example.soleilracingproject.features.analysis.ui.sessionComponents
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column

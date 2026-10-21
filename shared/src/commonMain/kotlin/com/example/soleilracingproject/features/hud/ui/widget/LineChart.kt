@@ -109,7 +109,6 @@ fun LineChart(
 
                 val stepX = size.width / (maxPoints - 1)
 
-
                 val points = values.indices.map { i ->
 
                     val x = size.width - (values.size - 1 - i) * stepX

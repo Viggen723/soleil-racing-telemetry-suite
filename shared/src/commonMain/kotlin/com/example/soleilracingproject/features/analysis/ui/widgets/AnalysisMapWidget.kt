@@ -292,7 +292,7 @@ fun AnalysisMapWidget(
                     Column(modifier = Modifier.padding(8.dp)) {
                         if (point != null) {
                             Text(
-                                text = "${point.speed.formatOneDecimal()} mp/h | X:${point.accelX.formatOneDecimal()}G Y:${point.accelY.formatOneDecimal()}G",
+                                text = "${point.speed.formatOneDecimal()} mph | X:${point.accelX.formatOneDecimal()}G Y:${point.accelY.formatOneDecimal()}G",
                                 color = primaryColor,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -300,7 +300,7 @@ fun AnalysisMapWidget(
                         }
                         if (compPoint != null) {
                             Text(
-                                text = "${compPoint.speed.formatOneDecimal()} mp/h | X:${compPoint.accelX.formatOneDecimal()}G Y:${compPoint.accelY.formatOneDecimal()}G",
+                                text = "${compPoint.speed.formatOneDecimal()} mph | X:${compPoint.accelX.formatOneDecimal()}G Y:${compPoint.accelY.formatOneDecimal()}G",
                                 color = comparisonColor,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,

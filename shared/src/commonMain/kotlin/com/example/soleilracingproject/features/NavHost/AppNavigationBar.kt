@@ -18,10 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,9 +30,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.soleilracingproject.features.NavHost.MainNavHost
-import com.example.soleilracingproject.features.NavHost.Route
 import com.example.soleilracingproject.features.NavHost.navItems
 import com.example.soleilracingproject.features.shared.SoleilTopBar
 
@@ -45,7 +45,9 @@ fun AppNavigationBar(
     isFocusModeParam: Boolean = false,
 ) {
     val navController = rememberNavController()
-    var currentRoute by remember { mutableStateOf<Route>(Route.Hud) }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+
     var isFocusMode by remember { mutableStateOf(isFocusModeParam) }
     var topBarActions by remember { mutableStateOf<(@Composable RowScope.() -> Unit)?>(null) }
 
@@ -68,7 +70,7 @@ fun AppNavigationBar(
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
-                androidx.compose.material3.Surface(
+                Surface(
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     tonalElevation = 3.dp,
                     modifier = Modifier.fillMaxWidth()
@@ -82,17 +84,20 @@ fun AppNavigationBar(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         navItems.forEach { item ->
-                            val isSelected = currentRoute == item.route
+                            val isSelected = currentDestination?.hasRoute(item.route::class) == true
 
                             Column(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clickable(
                                         onClick = {
-                                            if (currentRoute != item.route) {
-                                                currentRoute = item.route
+                                            if (!isSelected) {
                                                 navController.navigate(item.route) {
+                                                    popUpTo(navController.graph.findStartDestination().route!!) {
+                                                        saveState = true
+                                                    }
                                                     launchSingleTop = true
+                                                    restoreState = true
                                                 }
                                             }
                                         }

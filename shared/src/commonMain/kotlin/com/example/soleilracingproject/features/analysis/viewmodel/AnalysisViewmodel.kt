@@ -3,8 +3,10 @@ package com.example.soleilracingproject.features.analysis.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.soleilracingproject.features.analysis.data.AnalysisRepository
+import com.example.soleilracingproject.features.garage.data.GarageRepository
 import com.example.soleilracingproject.model.analysis.KnownTracks
 import com.example.soleilracingproject.model.analysis.Session
+import com.example.soleilracingproject.model.garage.Car
 import com.example.soleilracingproject.util.tools.lapLogic.LapLogic
 import com.example.soleilracingproject.util.tools.parseCsvSession.CsvTelemetryParser
 import kotlinx.coroutines.Dispatchers
@@ -17,9 +19,17 @@ import kotlinx.coroutines.launch
 
 class AnalysisViewModel(
     private val repository: AnalysisRepository? = null,
+    private val garageRepository: GarageRepository? = null,
 ) : ViewModel() {
 
     val sessionsState: StateFlow<List<Session>> = (repository?.getAllSessions() ?: flowOf(emptyList()))
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList(),
+        )
+
+    val garageCars: StateFlow<List<Car>> = (garageRepository?.cars ?: flowOf(emptyList()))
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -57,10 +67,17 @@ class AnalysisViewModel(
                 }
             }
 
+            val activeCar = garageRepository?.getActiveCar()
+            val defaultVehicleName = activeCar?.let { car ->
+                listOfNotNull(car.year?.toString(), car.make, car.model, "(${car.name})")
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ")
+            }?.ifBlank { null } ?: "Unknown Vehicle"
+
             val newSession = Session(
                 id = uniqueSessionId,
                 title = fileName.replace(".csv", "", ignoreCase = true),
-                vehicleId = "Unknown Vehicle",
+                vehicleId = defaultVehicleName,
                 track = matchedTrack?.trackName ?: "Imported Track",
                 dateEpoch = now,
                 isSynced = false,
@@ -76,6 +93,14 @@ class AnalysisViewModel(
         if (trimmed.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
             repository?.updateSession(session.copy(title = trimmed))
+        }
+    }
+
+    fun updateSessionVehicle(session: Session, newVehicleName: String) {
+        val trimmed = newVehicleName.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            repository?.updateSession(session.copy(vehicleId = trimmed))
         }
     }
 

@@ -1,6 +1,6 @@
 package com.example.soleilracingproject.features.hud.ui
 
-import HudViewModel
+import com.example.soleilracingproject.features.hud.viewmodel.HudViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
