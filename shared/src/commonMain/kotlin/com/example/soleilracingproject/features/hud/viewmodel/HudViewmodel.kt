@@ -2,6 +2,7 @@ package com.example.soleilracingproject.features.hud.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.soleilracingproject.data.local.dao.LapDao
 import com.example.soleilracingproject.features.hud.data.HudRepository
 import com.example.soleilracingproject.features.hud.ui.widget.*
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaMode
@@ -21,8 +22,10 @@ import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
+import com.example.soleilracingproject.data.local.dao.WidgetLayoutDao
+import com.example.soleilracingproject.data.local.entity.WidgetLayoutEntity
 
-private const val USE_FAKE_DATA = false
+private const val USE_FAKE_DATA = true
 // How many recent readings we remember for the graphs (200 readings = about 20 seconds)
 private const val HISTORY_SIZE = 200
 
@@ -34,6 +37,8 @@ enum class RecordingState {
 
 class HudViewModel(
     private val hudRepository: HudRepository,
+    private val lapDao: LapDao? = null,
+    private val widgetLayoutDao: WidgetLayoutDao? = null
 ) : ViewModel() {
 
     private val _telemetryState = MutableStateFlow<TelemetryPoint?>(null)
@@ -79,6 +84,7 @@ class HudViewModel(
     val widgetLayout: StateFlow<List<WidgetConfig>> = _widgetLayout.asStateFlow()
 
     init {
+        loadSavedLayout()
         if (USE_FAKE_DATA) startFakeData() else startUdpListening()
     }
 
@@ -295,6 +301,32 @@ class HudViewModel(
             list[0] = list[index]
             list[index] = temp
             _widgetLayout.value = list
+            saveLayout()
+        }
+    }
+
+    // Writes the current order of the widgets to the database as one line of text
+    private fun saveLayout() {
+        val text = _widgetLayout.value.joinToString(",") { it.content.name }
+        viewModelScope.launch(Dispatchers.IO) {
+            widgetLayoutDao?.saveLayout(WidgetLayoutEntity(id = "hud", widgets = text))
+        }
+    }
+
+    // Reads the saved line when the app starts and rebuilds the three widgets from it
+    private fun loadSavedLayout() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val saved = widgetLayoutDao?.getLayout() ?: return@launch
+            // turn each saved name back into a widget type, skipping names that no longer exist
+            val contents = saved.widgets.split(",").mapNotNull { name ->
+                WidgetContent.entries.find { it.name == name }
+            }
+            // a good layout has exactly 3 different widgets, otherwise keep the default
+            if (contents.size == 3 && contents.toSet().size == 3) {
+                _widgetLayout.value = contents.map { content ->
+                    WidgetConfig(id = "widget_${content.name}", content = content, title = content.name)
+                }
+            }
         }
     }
 
@@ -306,6 +338,7 @@ class HudViewModel(
                 if (widget.id == id) widget.copy(content = newContent, title = newContent.name) else widget
             }
         }
+        saveLayout()
     }
 
     override fun onCleared() {
