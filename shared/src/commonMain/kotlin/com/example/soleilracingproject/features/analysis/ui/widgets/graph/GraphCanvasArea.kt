@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.soleilracingproject.features.analysis.ui.TelemetryMetric
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
+import com.example.soleilracingproject.util.tools.ConversionTools
 
 @Composable
 fun GraphCanvasArea(
@@ -133,12 +134,16 @@ fun GraphCanvasArea(
             )
         }
 
+        val rdpCompPoints = if (compPixelPoints.size > 20) {
+            ConversionTools.ramerDouglasPeucker(compPixelPoints, epsilon = 4.0f)
+        } else compPixelPoints
+
         // Draw Comparison Lap Curve first (Cyan)
-        if (compPixelPoints.size >= 2) {
+        if (rdpCompPoints.size >= 2) {
             val compPath = Path().apply {
-                moveTo(compPixelPoints.first().x, compPixelPoints.first().y)
-                for (i in 1 until compPixelPoints.size) {
-                    lineTo(compPixelPoints[i].x, compPixelPoints[i].y)
+                moveTo(rdpCompPoints.first().x, rdpCompPoints.first().y)
+                for (i in 1 until rdpCompPoints.size) {
+                    lineTo(rdpCompPoints[i].x, rdpCompPoints[i].y)
                 }
             }
 
@@ -153,15 +158,19 @@ fun GraphCanvasArea(
             )
         }
 
+        val rdpPrimaryPoints = if (primaryPixelPoints.size > 20) {
+            ConversionTools.ramerDouglasPeucker(primaryPixelPoints, epsilon = 2.5f)
+        } else primaryPixelPoints
+
         // Draw Primary Lap Curve on top (Soleil Red + Fill)
-        if (primaryPixelPoints.size >= 2) {
+        if (rdpPrimaryPoints.size >= 2) {
             val fillPath = Path().apply {
-                moveTo(primaryPixelPoints.first().x, canvasHeight - bottomPx)
-                lineTo(primaryPixelPoints.first().x, primaryPixelPoints.first().y)
-                for (i in 1 until primaryPixelPoints.size) {
-                    lineTo(primaryPixelPoints[i].x, primaryPixelPoints[i].y)
+                moveTo(rdpPrimaryPoints.first().x, canvasHeight - bottomPx)
+                lineTo(rdpPrimaryPoints.first().x, rdpPrimaryPoints.first().y)
+                for (i in 1 until rdpPrimaryPoints.size) {
+                    lineTo(rdpPrimaryPoints[i].x, rdpPrimaryPoints[i].y)
                 }
-                lineTo(primaryPixelPoints.last().x, canvasHeight - bottomPx)
+                lineTo(rdpPrimaryPoints.last().x, canvasHeight - bottomPx)
                 close()
             }
 
@@ -175,9 +184,9 @@ fun GraphCanvasArea(
             )
 
             val graphPath = Path().apply {
-                moveTo(primaryPixelPoints.first().x, primaryPixelPoints.first().y)
-                for (i in 1 until primaryPixelPoints.size) {
-                    lineTo(primaryPixelPoints[i].x, primaryPixelPoints[i].y)
+                moveTo(rdpPrimaryPoints.first().x, rdpPrimaryPoints.first().y)
+                for (i in 1 until rdpPrimaryPoints.size) {
+                    lineTo(rdpPrimaryPoints[i].x, rdpPrimaryPoints[i].y)
                 }
             }
 

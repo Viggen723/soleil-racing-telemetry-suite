@@ -1,6 +1,7 @@
 package com.example.soleilracingproject.features.analysis.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,6 +36,8 @@ import com.example.soleilracingproject.features.analysis.ui.sessionComponents.Se
 import com.example.soleilracingproject.features.analysis.ui.sessionComponents.SessionSelectionDialog
 import com.example.soleilracingproject.features.analysis.ui.widgets.AnalysisGraphWidget
 import com.example.soleilracingproject.features.analysis.ui.widgets.AnalysisMapWidget
+import com.example.soleilracingproject.features.analysis.ui.widgets.AnalysisMetricSelector
+import com.example.soleilracingproject.features.analysis.ui.widgets.LapSelectorRow
 import com.example.soleilracingproject.features.analysis.viewmodel.AnalysisViewModel
 import com.example.soleilracingproject.model.analysis.Session
 import com.example.soleilracingproject.model.garage.Car
@@ -208,61 +211,112 @@ fun AnalysisContent(
             )
         }
 
-        // Map Widget
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(240.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ),
-        ) {
-            AnalysisMapWidget(
-                lap = displayLap,
-                comparisonLap = comparisonLap,
-                selectedIndex = globalSelectedIndex,
-                onPointSelected = { globalSelectedIndex = it },
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
+        // Map & Graph Widgets (Side-by-Side on Landscape, Stacked on Portrait)
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val isLandscape = maxWidth > maxHeight || maxWidth > 550.dp
 
-
-        // Graph Widget
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ),
-        ) {
-            AnalysisGraphWidget(
-                lap = displayLap,
-                comparisonLap = comparisonLap,
-                metric = currentMetric,
-                selectedIndex = globalSelectedIndex,
-                onPointSelected = { globalSelectedIndex = it },
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-
-        // Metric Selector Buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            TelemetryMetric.entries.forEach { metric ->
-                Button(
-                    onClick = { currentMetric = metric },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (currentMetric == metric) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = if (currentMetric == metric) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                    modifier = Modifier.weight(1f),
+            if (isLandscape) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.Top,
                 ) {
-                    Text(metric.title)
+                    // Left Column: Track Map
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(260.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                    ) {
+                        AnalysisMapWidget(
+                            lap = displayLap,
+                            comparisonLap = comparisonLap,
+                            selectedIndex = globalSelectedIndex,
+                            onPointSelected = { globalSelectedIndex = it },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+
+                    // Right Column: Telemetry Graph & Metric Selectors
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(210.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ),
+                        ) {
+                            AnalysisGraphWidget(
+                                lap = displayLap,
+                                comparisonLap = comparisonLap,
+                                metric = currentMetric,
+                                selectedIndex = globalSelectedIndex,
+                                onPointSelected = { globalSelectedIndex = it },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+
+                        AnalysisMetricSelector(
+                            currentMetric = currentMetric,
+                            onMetricSelected = { currentMetric = it },
+                        )
+                    }
+                }
+            } else {
+                // Portrait Mode Stacked
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                    ) {
+                        AnalysisMapWidget(
+                            lap = displayLap,
+                            comparisonLap = comparisonLap,
+                            selectedIndex = globalSelectedIndex,
+                            onPointSelected = { globalSelectedIndex = it },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                    ) {
+                        AnalysisGraphWidget(
+                            lap = displayLap,
+                            comparisonLap = comparisonLap,
+                            metric = currentMetric,
+                            selectedIndex = globalSelectedIndex,
+                            onPointSelected = { globalSelectedIndex = it },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+
+                    AnalysisMetricSelector(
+                        currentMetric = currentMetric,
+                        onMetricSelected = { currentMetric = it },
+                    )
                 }
             }
         }
