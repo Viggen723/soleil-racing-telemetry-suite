@@ -25,7 +25,7 @@ import kotlin.random.Random
 import com.example.soleilracingproject.data.local.dao.WidgetLayoutDao
 import com.example.soleilracingproject.data.local.entity.WidgetLayoutEntity
 
-private const val USE_FAKE_DATA = true
+private const val USE_FAKE_DATA = false
 // How many recent readings we remember for the graphs (200 readings = about 20 seconds)
 private const val HISTORY_SIZE = 200
 
