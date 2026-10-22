@@ -24,8 +24,9 @@ import kotlin.math.sin
 import kotlin.random.Random
 import com.example.soleilracingproject.data.local.dao.WidgetLayoutDao
 import com.example.soleilracingproject.data.local.entity.WidgetLayoutEntity
+import kotlinx.coroutines.Job
 
-private const val USE_FAKE_DATA = false
+private const val USE_FAKE_DATA = true
 // How many recent readings we remember for the graphs (200 readings = about 20 seconds)
 private const val HISTORY_SIZE = 200
 
@@ -58,6 +59,10 @@ class HudViewModel(
     // The laps finished in this recording. The lap times widget reads this.
     private val _lapsState = MutableStateFlow<List<Lap>>(emptyList())
     val lapsState: StateFlow<List<Lap>> = _lapsState.asStateFlow()
+    // When Start is pressed the recording bar shows this as a timer.
+    private val _recordingSeconds = MutableStateFlow(0L)
+    val recordingSeconds: StateFlow<Long> = _recordingSeconds.asStateFlow()
+    private var timerJob: Job? = null
 
     private val activeLapBuffer = mutableListOf<TelemetryPoint>()
     private val allRecordedSessionPoints = mutableListOf<TelemetryPoint>()
@@ -155,6 +160,22 @@ class HudViewModel(
         }
     }
 
+    private fun startTimer() {
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (true) {
+                val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+                _recordingSeconds.value = (now - sessionStartTime) / 1000
+                delay(1000)
+            }
+        }
+    }
+
+    private fun stopTimer() {
+        timerJob?.cancel()
+        _recordingSeconds.value = 0
+    }
+
     fun startRecording() {
         if (_recordingState.value != RecordingState.IDLE) return
         _lapDeltas.value = LapDeltas()
@@ -166,6 +187,7 @@ class HudViewModel(
         lapStartTimeMs = null
         detectedGate = null
         sessionStartTime = kotlin.time.Clock.System.now().toEpochMilliseconds()
+        startTimer()
         currentSessionId = "session_${Random.nextLong().toString(16)}"
         _isRecording.value = true
         _recordingState.value = RecordingState.ARMED
@@ -202,6 +224,7 @@ class HudViewModel(
         _lapDeltas.value = LapDeltas()
         _recordingState.value = RecordingState.IDLE
         _isRecording.value = false
+        stopTimer()
 
         viewModelScope.launch(Dispatchers.IO) {
             val matchedTrack = KnownTracks.findMatchingTrack(sessionPoints)
