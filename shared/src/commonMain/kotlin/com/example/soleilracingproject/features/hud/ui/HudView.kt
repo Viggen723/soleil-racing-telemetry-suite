@@ -24,6 +24,7 @@ fun HudView(
     viewModel: HudViewModel,
     onUpdateTopBarActions: ((@Composable RowScope.() -> Unit)?) -> Unit = {},
     onFocusModeChange: (Boolean) -> Unit = {},
+    onRecordingTimeChange: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val telemetry by viewModel.telemetryState.collectAsStateWithLifecycle()
@@ -34,6 +35,10 @@ fun HudView(
     val recentPoints by viewModel.recentPoints.collectAsStateWithLifecycle()
     val deltaMode by viewModel.deltaMode.collectAsStateWithLifecycle()
     val laps by viewModel.lapsState.collectAsStateWithLifecycle()
+    val recordingSeconds by viewModel.recordingSeconds.collectAsStateWithLifecycle()
+    LaunchedEffect(recordingSeconds) {
+        onRecordingTimeChange(recordingSeconds)    // tell the navigation bar new time
+    }
 
     // Which widget is being replaced right now (null = the list is closed)
     var replacingWidgetId by remember { mutableStateOf<String?>(null) }

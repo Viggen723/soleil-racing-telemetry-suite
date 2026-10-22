@@ -21,6 +21,7 @@ fun MainNavHost(
     startDestination: Route = Route.Hud,
     onUpdateTopBarActions: ((@Composable RowScope.() -> Unit)?) -> Unit = {},
     onFocusModeChange: (Boolean) -> Unit = {},
+    onRecordingTimeChange: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val hudViewModel: HudViewModel = koinViewModel()
@@ -34,7 +35,8 @@ fun MainNavHost(
             HudView(
                 viewModel = hudViewModel,
                 onUpdateTopBarActions = onUpdateTopBarActions,
-                onFocusModeChange = onFocusModeChange
+                onFocusModeChange = onFocusModeChange,
+                onRecordingTimeChange = onRecordingTimeChange
             )
         }
 
