@@ -8,9 +8,14 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import com.example.soleilracingproject.model.analysis.Lap
 import com.example.soleilracingproject.model.telemetry.LatLng
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
+import com.example.soleilracingproject.util.tools.ConversionTools
 import com.example.soleilracingproject.util.tools.ConversionTools.formatOneDecimal
 import com.example.soleilracingproject.util.tools.ConversionTools.normalizeCoordinates
 import kotlin.math.PI
@@ -111,31 +117,32 @@ fun AnalysisMapWidget(
             allGraphPoints.drop(lapCoords.size)
         }
 
-        val trackPath: Path? = remember(graphPoints) {
-            if (graphPoints.size < 2) {
+        val rdpGraphPoints = remember(graphPoints) {
+            if (graphPoints.size > 20) {
+                val smoothed = ConversionTools.smoothPointsMovingAverage(graphPoints, passes = 2)
+                ConversionTools.ramerDouglasPeucker(smoothed, epsilon = 2.0f)
+            } else graphPoints
+        }
+        val rdpCompGraphPoints = remember(compGraphPoints) {
+            if (compGraphPoints.size > 20) {
+                val smoothed = ConversionTools.smoothPointsMovingAverage(compGraphPoints, passes = 2)
+                ConversionTools.ramerDouglasPeucker(smoothed, epsilon = 2.0f)
+            } else compGraphPoints
+        }
+
+        val trackPath: Path? = remember(rdpGraphPoints) {
+            if (rdpGraphPoints.size < 2) {
                 null
             } else {
-                Path().apply {
-                    moveTo(graphPoints.first().x, graphPoints.first().y)
-                    for (i in 1 until graphPoints.size) {
-                        lineTo(graphPoints[i].x, graphPoints[i].y)
-                    }
-                    close()
-                }
+                ConversionTools.createSmoothPath(rdpGraphPoints, isClosed = true)
             }
         }
 
-        val compTrackPath: Path? = remember(compGraphPoints) {
-            if (compGraphPoints.size < 2) {
+        val compTrackPath: Path? = remember(rdpCompGraphPoints) {
+            if (rdpCompGraphPoints.size < 2) {
                 null
             } else {
-                Path().apply {
-                    moveTo(compGraphPoints.first().x, compGraphPoints.first().y)
-                    for (i in 1 until compGraphPoints.size) {
-                        lineTo(compGraphPoints[i].x, compGraphPoints[i].y)
-                    }
-                    close()
-                }
+                ConversionTools.createSmoothPath(rdpCompGraphPoints, isClosed = true)
             }
         }
 
@@ -309,6 +316,29 @@ fun AnalysisMapWidget(
                     }
                 }
             }
+        }
+
+        // Recenter Button
+        IconButton(
+            onClick = {
+                zoomLevel = 1f
+                offset = Offset.Zero
+            },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(8.dp)
+                .size(32.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
+                    shape = RoundedCornerShape(8.dp)
+                ),
+        ) {
+            Icon(
+                imageVector = Icons.Default.MyLocation,
+                contentDescription = "Recenter Map",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

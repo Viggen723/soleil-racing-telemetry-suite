@@ -1,4 +1,4 @@
-package com.example.soleilracingproject.features.analysis.ui
+package com.example.soleilracingproject.features.analysis.ui.widgets
 
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
