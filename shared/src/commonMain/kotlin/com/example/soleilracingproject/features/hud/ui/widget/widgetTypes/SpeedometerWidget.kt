@@ -27,21 +27,18 @@ import com.example.soleilracingproject.model.telemetry.TelemetryPoint
 import com.example.soleilracingproject.util.tools.ConversionTools.formatOneDecimal
 import kotlin.math.min
 
-// The arc is completely full at this speed (mph).
-private const val MAX_SPEED = 180f
-
 private val GaugeOrange = Color(0xFFFF8F00)
 private val GaugeRed = Color(0xFFD50000)
 
 @Composable
-fun SpeedometerWidget(telemetry: TelemetryPoint?) {
+fun SpeedometerWidget(telemetry: TelemetryPoint?, maxSpeed: Float = 180f) {
     // No data yet (logger not connected) means we show 0
     val speed = telemetry?.speed ?: 0f
 
     // How full the arc is: 0 = empty, 1 = full.
     // animateFloatAsState makes the arc glide to the new value instead of jumping.
     val fraction by animateFloatAsState(
-        targetValue = (speed / MAX_SPEED).coerceIn(0f, 1f),
+        targetValue = (speed / maxSpeed).coerceIn(0f, 1f),
         animationSpec = tween(durationMillis = 150)
     )
 

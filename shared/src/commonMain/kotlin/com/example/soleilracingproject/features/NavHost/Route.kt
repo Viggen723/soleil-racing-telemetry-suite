@@ -3,6 +3,8 @@ package com.example.soleilracingproject.features.NavHost
 import kotlinx.serialization.Serializable
 
 interface Route {
+    @Serializable
+    data object Settings: Route
 
     @Serializable
     data object Hud: Route

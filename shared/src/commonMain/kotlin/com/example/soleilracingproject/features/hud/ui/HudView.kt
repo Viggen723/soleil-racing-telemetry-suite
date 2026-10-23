@@ -30,6 +30,7 @@ fun HudView(
     modifier: Modifier = Modifier
 ) {
     val telemetry by viewModel.telemetryState.collectAsStateWithLifecycle()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
     val widgets by viewModel.widgetLayout.collectAsStateWithLifecycle()
     val isEditMode by viewModel.isEditMode.collectAsStateWithLifecycle()
     val isRecording by viewModel.isRecording.collectAsStateWithLifecycle()
@@ -48,7 +49,7 @@ fun HudView(
     // Focus mode (full screen): only while recording AND moving, and never while editing.
     // Before, it switched on whenever speed was above 10. That hid the Edit button,
     // so nobody could edit while data was coming in.
-    val isFocusMode = isRecording && !isEditMode && (telemetry?.speed ?: 0f) > 10f
+    val isFocusMode = settings.focusModeEnabled && isRecording && !isEditMode && (telemetry?.speed ?: 0f) > 10f
     LaunchedEffect(isFocusMode) {
         onFocusModeChange(isFocusMode)
     }
@@ -66,6 +67,7 @@ fun HudView(
     DisposableEffect(Unit) {
         onDispose {
             onUpdateTopBarActions(null)
+            onFocusModeChange(false)
         }
     }
 
@@ -90,6 +92,7 @@ fun HudView(
         deltaMode = deltaMode,
         onNextDeltaMode = viewModel::nextDeltaMode,
         laps = laps,
+        speedometerMax = settings.speedometerMax,
         onLongPressWidget = {
             // Same rule as the edit button: never while the screen is in full-screen driving mode
             if (!isEditMode && !isFocusMode) viewModel.toggleEditMode()
@@ -118,6 +121,7 @@ fun HudContent(
     onNextDeltaMode: () -> Unit = {},
     laps: List<Lap> = emptyList(),
     onLongPressWidget: () -> Unit = {},
+    speedometerMax: Float = 180f,
 ) {
     // One widget card. index 0 = the main widget, index 1 and 2 = the side widgets.
     // We write it once here so we don't repeat it for portrait and landscape.
@@ -137,6 +141,7 @@ fun HudContent(
                         deltaMode = deltaMode,
                         onNextDeltaMode = onNextDeltaMode,
                         laps = laps,
+                        speedometerMax = speedometerMax,
                     )
 
                     if (isEditMode) {

@@ -25,6 +25,8 @@ import kotlin.random.Random
 import com.example.soleilracingproject.data.local.dao.WidgetLayoutDao
 import com.example.soleilracingproject.data.local.entity.WidgetLayoutEntity
 import kotlinx.coroutines.Job
+import com.example.soleilracingproject.features.settings.data.SettingsRepository
+import com.example.soleilracingproject.model.settings.AppSettings
 
 private const val USE_FAKE_DATA = true
 // How many recent readings we remember for the graphs (200 readings = about 20 seconds)
@@ -38,9 +40,13 @@ enum class RecordingState {
 
 class HudViewModel(
     private val hudRepository: HudRepository,
+    settingsRepository: SettingsRepository,
     private val lapDao: LapDao? = null,
     private val widgetLayoutDao: WidgetLayoutDao? = null
 ) : ViewModel() {
+    val settings = settingsRepository.settings.stateIn(
+        viewModelScope, SharingStarted.Eagerly, AppSettings()
+    )
 
     private val _telemetryState = MutableStateFlow<TelemetryPoint?>(null)
     val telemetryState: StateFlow<TelemetryPoint?> = _telemetryState.asStateFlow()

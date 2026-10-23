@@ -49,10 +49,11 @@ fun WidgetRenderer(
     laps: List<Lap> = emptyList(),
     deltaMode: DeltaMode = DeltaMode.BEST_LAP,
     onNextDeltaMode: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    speedometerMax: Float = 180f,
 ) {
     when (content) {
-        WidgetContent.SPEEDOMETER -> SpeedometerWidget(telemetry = telemetry)
+        WidgetContent.SPEEDOMETER -> SpeedometerWidget(telemetry = telemetry, maxSpeed = speedometerMax)
         WidgetContent.ALTITUDE -> AltitudeWidget(telemetry = telemetry)
         WidgetContent.LAP_DELTA -> DeltaWidget(lapDeltas, isRecording, deltaMode, onNextDeltaMode)
         WidgetContent.LAP_TIMES -> LapTimesWidget(laps, isRecording)

@@ -21,6 +21,7 @@ val appModule = module {
             .build()
     }
     single { get<AppDatabase>().sessionDao() }
+    single { get<AppDatabase>().settingsDao() }
     single { get<AppDatabase>().widgetLayoutDao() }
     single { get<AppDatabase>().lapDao() }
     single { get<AppDatabase>().telemetryDao() }
