@@ -2,11 +2,13 @@ package com.example.soleilracingproject.features.hud.ui
 
 import com.example.soleilracingproject.features.hud.viewmodel.HudViewModel
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -88,6 +90,10 @@ fun HudView(
         deltaMode = deltaMode,
         onNextDeltaMode = viewModel::nextDeltaMode,
         laps = laps,
+        onLongPressWidget = {
+            // Same rule as the edit button: never while the screen is in full-screen driving mode
+            if (!isEditMode && !isFocusMode) viewModel.toggleEditMode()
+        },
     )
 }
 
@@ -111,13 +117,14 @@ fun HudContent(
     deltaMode: DeltaMode = DeltaMode.BEST_LAP,
     onNextDeltaMode: () -> Unit = {},
     laps: List<Lap> = emptyList(),
+    onLongPressWidget: () -> Unit = {},
 ) {
     // One widget card. index 0 = the main widget, index 1 and 2 = the side widgets.
     // We write it once here so we don't repeat it for portrait and landscape.
     val widgetCard: @Composable (Int, Modifier) -> Unit = { index, cardModifier ->
         val widget = widgets.getOrNull(index)
         if (widget != null) {
-            Card(modifier = cardModifier) {
+            Card(modifier = cardModifier.onLongPress(onLongPressWidget)) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     WidgetRenderer(
                         content = widget.content,
@@ -192,7 +199,8 @@ private fun WidgetControlOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f)),
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
+            .pointerInput(Unit) { detectTapGestures { } },
         contentAlignment = Alignment.Center
     ) {
         Column(

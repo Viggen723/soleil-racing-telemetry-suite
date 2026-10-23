@@ -149,7 +149,7 @@ class HudViewModel(
                     accelZ = 0f,
                     latitude = 35.68f + 0.0009f * sin(angle),
                     longitude = 139.69f + 0.0011f * cos(angle),
-                    speed = 80f + 50f * sin(t / 15f),
+                    speed = 100f + 80f * sin(t / 15f),
                     qw = 1f, qi = 0f, qj = 0f, qk = 0f,
                     altitude = 20f + 5f * sin(t / 40f)
                 )
