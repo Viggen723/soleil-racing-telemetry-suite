@@ -8,6 +8,8 @@ plugins {
     alias(libs.plugins.kotlinJvm) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.kotlinSerialization) apply false
+    kotlin("native.cocoapods") version "2.4.20" apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.androidx.room3) apply false
+    id("com.google.gms.google-services") version "4.5.0" apply false
 }

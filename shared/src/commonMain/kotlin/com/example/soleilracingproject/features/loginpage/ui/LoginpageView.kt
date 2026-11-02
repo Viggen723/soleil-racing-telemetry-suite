@@ -38,8 +38,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
+import com.example.soleilracingproject.features.loginpage.viewmodel.LoginpageViewmodel
 import org.jetbrains.compose.resources.painterResource
 import soleilracingproject.shared.generated.resources.Res
 import soleilracingproject.shared.generated.resources.soleil_full
@@ -54,11 +56,21 @@ private enum class AuthView {
 
 @Composable
 fun LoginpageView(
-    onLoginClick: () -> Unit = {},
-    onNewUserClick: () -> Unit = {}
+    viewModel: LoginpageViewmodel,
+    onNavigateSuccess: () -> Unit = {}
 ) {
+    val isAuthenticated by viewModel.isAuthenticated.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
+
+    LaunchedEffect(isAuthenticated) {
+        if (isAuthenticated) {
+            onNavigateSuccess()
+        }
+    }
+
     var authView by remember { mutableStateOf(AuthView.LANDING) }
-    var username by remember { mutableStateOf("") }
+    var emailLogin by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var createAccountUsername by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -163,16 +175,20 @@ fun LoginpageView(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        if (error != null) {
+                            Text(error!!, color = MaterialTheme.colorScheme.error)
+                        }
                         OutlinedTextField(
-                            value = username,
-                            onValueChange = { username = it },
+                            value = emailLogin,
+                            onValueChange = { emailLogin = it; viewModel.clearError() },
                             modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Username") },
-                            singleLine = true
+                            label = { Text("Email") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                         )
                         OutlinedTextField(
                             value = password,
-                            onValueChange = { password = it },
+                            onValueChange = { password = it; viewModel.clearError() },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("Password") },
                             singleLine = true,
@@ -180,15 +196,17 @@ fun LoginpageView(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                         )
                         Button(
-                            onClick = onLoginClick,
+                            onClick = { viewModel.login(emailLogin, password) },
+                            enabled = !isLoading,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
                         ) {
-                            Text("Login", style = MaterialTheme.typography.titleMedium)
+                            Text(if (isLoading) "Logging in..." else "Login", style = MaterialTheme.typography.titleMedium)
                         }
                         TextButton(onClick = {
                             authView = AuthView.LANDING
-                            username = ""
+                            emailLogin = ""
                             password = ""
+                            viewModel.clearError()
                         }) {
                             Text("Back")
                         }
@@ -214,9 +232,12 @@ fun LoginpageView(
                             label = { Text("Username") },
                             singleLine = true
                         )
+                        if (error != null) {
+                            Text(error!!, color = MaterialTheme.colorScheme.error)
+                        }
                         OutlinedTextField(
                             value = email,
-                            onValueChange = { email = it },
+                            onValueChange = { email = it; viewModel.clearError() },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("Email") },
                             singleLine = true,
@@ -224,7 +245,7 @@ fun LoginpageView(
                         )
                         OutlinedTextField(
                             value = createAccountPassword,
-                            onValueChange = { createAccountPassword = it },
+                            onValueChange = { createAccountPassword = it; viewModel.clearError() },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("Password") },
                             singleLine = true,
@@ -233,7 +254,7 @@ fun LoginpageView(
                         )
                         OutlinedTextField(
                             value = confirmPassword,
-                            onValueChange = { confirmPassword = it },
+                            onValueChange = { confirmPassword = it; viewModel.clearError() },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("Confirm Password") },
                             singleLine = true,
@@ -241,20 +262,21 @@ fun LoginpageView(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                         )
                         Button(
-                            onClick = {},
+                            onClick = { viewModel.register(email, createAccountPassword, confirmPassword) },
+                            enabled = !isLoading,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary
                             )
                         ) {
-                            Text("Create Account", style = MaterialTheme.typography.titleMedium)
+                            Text(if (isLoading) "Creating..." else "Create Account", style = MaterialTheme.typography.titleMedium)
                         }
                         TextButton(onClick = {
                             authView = AuthView.LANDING
-                            createAccountUsername = ""
                             email = ""
                             createAccountPassword = ""
                             confirmPassword = ""
+                            viewModel.clearError()
                         }) {
                             Text("Back")
                         }
@@ -262,13 +284,5 @@ fun LoginpageView(
                 }
             }
         }
-    }
-}
-
-@Preview
-@Composable
-fun LoginpagePreview() {
-    Theme.AppTheme {
-        LoginpageView()
     }
 }

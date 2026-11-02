@@ -13,6 +13,8 @@ import com.example.soleilracingproject.features.garage.ui.GarageView
 import com.example.soleilracingproject.features.garage.viewmodel.GarageViewmodel
 import com.example.soleilracingproject.features.hud.ui.HudView
 import com.example.soleilracingproject.features.hud.viewmodel.HudViewModel
+import com.example.soleilracingproject.features.loginpage.ui.LoginpageView
+import com.example.soleilracingproject.features.loginpage.viewmodel.LoginpageViewmodel
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -22,7 +24,7 @@ import com.example.soleilracingproject.features.settings.viewmodel.SettingsViewM
 @Composable
 fun MainNavHost(
     navHostController: NavHostController,
-    startDestination: Route = Route.Hud,
+    startDestination: Route = Route.Login,
     onUpdateTopBarActions: ((@Composable RowScope.() -> Unit)?) -> Unit = {},
     onFocusModeChange: (Boolean) -> Unit = {},
     onRecordingTimeChange: (Long) -> Unit = {},
@@ -40,6 +42,22 @@ fun MainNavHost(
         startDestination = startDestination,
         modifier = modifier
     ) {
+        composable<Route.Login> {
+            val loginViewModel: LoginpageViewmodel = koinViewModel()
+            LaunchedEffect(Unit) {
+                onUpdateTopBarActions(null)
+                onFocusModeChange(false)
+            }
+            LoginpageView(
+                viewModel = loginViewModel,
+                onNavigateSuccess = {
+                    navHostController.navigate(Route.Hud) {
+                        popUpTo(Route.Login) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable<Route.Settings> {
             val settingsViewModel: SettingsViewModel = koinViewModel()
             LaunchedEffect(Unit) {

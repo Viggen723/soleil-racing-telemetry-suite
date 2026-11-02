@@ -70,11 +70,16 @@ fun AppNavigationBar(
             }
         },
         bottomBar = {
-            androidx.compose.material3.Surface(
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 3.dp,
-                modifier = Modifier.fillMaxWidth()
+            AnimatedVisibility(
+                visible = currentDestination?.hasRoute(com.example.soleilracingproject.features.navHost.Route.Login::class) != true,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
+                androidx.compose.material3.Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    tonalElevation = 3.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                 androidx.compose.foundation.layout.Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -151,6 +156,7 @@ fun AppNavigationBar(
                         }
                     }
                 }
+            }
             }
         }
     ) { padding ->

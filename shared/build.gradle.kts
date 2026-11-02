@@ -1,6 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
+    kotlin("native.cocoapods")
+    
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
@@ -27,6 +29,17 @@ kotlin {
     
     jvm()
     
+    cocoapods {
+        summary = "Shared KMP Code"
+        homepage = "https://github.com"
+        framework {
+            baseName = "Shared"
+        }
+        version = "1.0.0"
+        ios.deploymentTarget = "15.0"
+        pod("FirebaseAuth")
+    }
+    
     android {
        namespace = "com.example.soleilracingproject.shared"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -50,10 +63,16 @@ kotlin {
     
     sourceSets {
         androidMain.dependencies {
+
+
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
         }
         commonMain.dependencies {
+            implementation("dev.gitlive:firebase-auth:2.7.0")
+            implementation("dev.gitlive:firebase-common:2.7.0")
+
+
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -76,12 +95,16 @@ kotlin {
             implementation("io.github.vinceglb:filekit-compose:0.8.7")
         }
         commonTest.dependencies {
+
+
             implementation(libs.kotlin.test)
         }
     }
 }
 
 dependencies {
+
+
     androidRuntimeClasspath(libs.compose.uiTooling)
     add("kspAndroid", libs.androidx.room3.compiler)
     add("kspIosSimulatorArm64", libs.androidx.room3.compiler)

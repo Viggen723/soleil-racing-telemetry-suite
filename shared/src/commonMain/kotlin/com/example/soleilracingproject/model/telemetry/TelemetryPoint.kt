@@ -7,7 +7,7 @@ data class TelemetryPoint(
     val accelZ: Float,
     val latitude: Float,
     val longitude: Float,
-    val speed: Float,
+    val speed: Float, // Sent as mph from the logger
     val qw: Float,
     val qi: Float,
     val qj: Float,

@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.androidApplication)
+    id("com.google.gms.google-services")
     alias(libs.plugins.composeCompiler)
 }
 
@@ -11,6 +12,9 @@ kotlin {
     }
 }
 dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:35.1.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-analytics")
     implementation(project(":shared"))
 
     implementation(libs.koin.android)
