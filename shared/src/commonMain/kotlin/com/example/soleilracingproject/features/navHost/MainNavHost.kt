@@ -1,4 +1,4 @@
-package com.example.soleilracingproject.features.NavHost
+package com.example.soleilracingproject.features.navHost
 
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable

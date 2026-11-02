@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,8 +38,8 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.soleilracingproject.features.NavHost.MainNavHost
-import com.example.soleilracingproject.features.NavHost.navItems
+import com.example.soleilracingproject.features.navHost.MainNavHost
+import com.example.soleilracingproject.features.navHost.navItems
 import com.example.soleilracingproject.features.shared.SoleilTopBar
 
 // https://developer.android.com/develop/ui/compose/components/navigation-bar?hl=ja

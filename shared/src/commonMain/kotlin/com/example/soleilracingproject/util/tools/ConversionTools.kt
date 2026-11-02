@@ -50,6 +50,11 @@ object ConversionTools {
         )
     }
 
+    fun mphToKph(speed: Float) : Float
+    {
+        return (speed * 1.609344F)
+    }
+
     // Converts acceleration to Gs
     fun normalizeAccel(mPerSecSq: Float): Float {
         return mPerSecSq / 9.80665f
