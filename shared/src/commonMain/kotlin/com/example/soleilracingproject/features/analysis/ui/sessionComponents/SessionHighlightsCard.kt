@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.features.analysis.ui.sessionComponents
 
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ fun SessionHighlightsCard(
     onChangeSessionClick: () -> Unit,
     onRenameSession: (Session, String) -> Unit,
     modifier: Modifier = Modifier,
+    speedUnit: SpeedUnit = SpeedUnit.MPH,
     onUpdateVehicle: (Session, String) -> Unit = { _, _ -> },
     garageCars: List<Car> = emptyList(),
 ) {
@@ -132,7 +134,7 @@ fun SessionHighlightsCard(
                 SessionStatItem("Recorded Laps", (selectedSession?.laps?.size ?: 0).toString())
                 SessionStatItem("Active Lap", "Lap #${displayLap?.lapNumber ?: 1}")
                 SessionStatItem("Lap Time", displayLap?.lapTime?.formatLapTime() ?: "N/A")
-                SessionStatItem("Top Speed", "${displayLap?.topSpeedKmh?.formatOneDecimal() ?: "N/A"} mph")
+                SessionStatItem("Top Speed", "${displayLap?.topSpeedKmh?.let { speedUnit.fromMph(it).formatOneDecimal() } ?: "N/A"} ${speedUnit.label}")
             }
         }
     }

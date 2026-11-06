@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.features.analysis.ui.widgets.graph
 
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
@@ -22,6 +23,7 @@ fun GraphYAxisLabels(
     topPadding: Dp,
     bottomPadding: Dp,
     modifier: Modifier = Modifier,
+    speedUnit: SpeedUnit = SpeedUnit.MPH,
 ) {
     val labelColor = MaterialTheme.colorScheme.outline
     val labelStyle = MaterialTheme.typography.labelSmall
@@ -33,19 +35,19 @@ fun GraphYAxisLabels(
             .padding(end = 8.dp, top = topPadding, bottom = bottomPadding),
     ) {
         Text(
-            text = metric.formatAxisLabel(maxValue),
+            text = metric.formatAxisLabel(maxValue, speedUnit),
             style = labelStyle,
             color = labelColor,
             modifier = Modifier.align(Alignment.TopEnd),
         )
         Text(
-            text = metric.formatAxisLabel((maxValue + minValue) / 2f),
+            text = metric.formatAxisLabel((maxValue + minValue) / 2f, speedUnit),
             style = labelStyle,
             color = labelColor,
             modifier = Modifier.align(Alignment.CenterEnd),
         )
         Text(
-            text = metric.formatAxisLabel(minValue),
+            text = metric.formatAxisLabel(minValue, speedUnit),
             style = labelStyle,
             color = labelColor,
             modifier = Modifier.align(Alignment.BottomEnd),

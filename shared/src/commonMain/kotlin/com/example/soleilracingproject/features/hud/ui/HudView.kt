@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.features.hud.ui
 
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import com.example.soleilracingproject.features.hud.viewmodel.HudViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -93,6 +94,7 @@ fun HudView(
         onNextDeltaMode = viewModel::nextDeltaMode,
         laps = laps,
         speedometerMax = settings.speedometerMax,
+        speedUnit = settings.speedUnit,
         onLongPressWidget = {
             // Same rule as the edit button: never while the screen is in full-screen driving mode
             if (!isEditMode && !isFocusMode) viewModel.toggleEditMode()
@@ -122,6 +124,7 @@ fun HudContent(
     laps: List<Lap> = emptyList(),
     onLongPressWidget: () -> Unit = {},
     speedometerMax: Float = 180f,
+    speedUnit: SpeedUnit = SpeedUnit.MPH,
 ) {
     // One widget card. index 0 = the main widget, index 1 and 2 = the side widgets.
     // We write it once here so we don't repeat it for portrait and landscape.
@@ -142,6 +145,7 @@ fun HudContent(
                         onNextDeltaMode = onNextDeltaMode,
                         laps = laps,
                         speedometerMax = speedometerMax,
+                        speedUnit = speedUnit,
                     )
 
                     if (isEditMode) {

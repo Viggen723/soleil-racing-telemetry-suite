@@ -31,6 +31,6 @@ val sharedModule = module {
             getOrNull()
         )
     }
-    viewModel { AnalysisViewModel(getOrNull(), getOrNull()) }
+    viewModel { AnalysisViewModel(getOrNull(), getOrNull(), get()) }
     viewModel { GarageViewmodel(get()) }
 }

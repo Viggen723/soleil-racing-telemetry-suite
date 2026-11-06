@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.features.settings.data
 
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import com.example.soleilracingproject.data.local.dao.SettingsDao
 import com.example.soleilracingproject.data.mapper.toDomain
 import com.example.soleilracingproject.data.mapper.toEntity
@@ -24,5 +25,6 @@ class SettingsRepository(private val dao: SettingsDao) {
         require(AppSettings.isValidSpeedometerMax(value)) { "Enter a maximum from 10 to 500 mph." }
         update { it.copy(speedometerMax = value) }
     }
+    suspend fun updateSpeedUnit(value: SpeedUnit) = update { it.copy(speedUnit = value) }
     suspend fun updateFocusModeEnabled(value: Boolean) = update { it.copy(focusModeEnabled = value) }
 }

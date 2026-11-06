@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.features.analysis.ui.widgets.graph
 
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +25,7 @@ fun GraphHeaderRow(
     maxValue: Float,
     minValue: Float,
     modifier: Modifier = Modifier,
+    speedUnit: SpeedUnit = SpeedUnit.MPH,
 ) {
     val labelStyle = MaterialTheme.typography.labelSmall
     val primaryColor = Color(0xFFD71344)
@@ -36,18 +38,18 @@ fun GraphHeaderRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = metric.title.uppercase(),
+            text = metric.displayTitle(speedUnit).uppercase(),
             style = labelStyle.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.primary,
         )
 
         if (selectedPoint != null) {
-            val valStr = metric.formatValue(metric.extractValue(selectedPoint))
+            val valStr = metric.formatValue(metric.extractValue(selectedPoint), speedUnit = speedUnit)
             val ptTimeMs = (selectedPoint.time.toLong() - startPointTime).coerceAtLeast(0L)
 
             if (comparisonPoint != null) {
                 val diff = metric.extractValue(selectedPoint) - metric.extractValue(comparisonPoint)
-                val diffStr = if (diff >= 0) "+${metric.formatValue(diff)}" else metric.formatValue(diff)
+                val diffStr = if (diff >= 0) "+${metric.formatValue(diff, speedUnit = speedUnit)}" else metric.formatValue(diff, speedUnit = speedUnit)
 
                 Text(
                     text = "($diffStr)",
@@ -62,8 +64,8 @@ fun GraphHeaderRow(
                 )
             }
         } else {
-            val maxStr = metric.formatValue(maxValue)
-            val minStr = metric.formatValue(minValue)
+            val maxStr = metric.formatValue(maxValue, speedUnit = speedUnit)
+            val minStr = metric.formatValue(minValue, speedUnit = speedUnit)
             Text(
                 text = "MAX: $maxStr  |  MIN: $minStr",
                 style = labelStyle,

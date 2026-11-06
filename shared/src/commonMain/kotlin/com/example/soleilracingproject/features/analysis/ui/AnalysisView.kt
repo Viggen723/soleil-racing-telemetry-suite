@@ -68,6 +68,7 @@ fun AnalysisContent(
     viewModel: AnalysisViewModel,
     modifier: Modifier = Modifier,
 ) {
+    val speedUnit by viewModel.speedUnit.collectAsStateWithLifecycle()
     var selectedSession by remember { mutableStateOf<Session?>(null) }
     var showSessionDialog by remember { mutableStateOf(false) }
 
@@ -182,6 +183,7 @@ fun AnalysisContent(
 
         // Session Highlights Card
         SessionHighlightsCard(
+            speedUnit = speedUnit,
             selectedSession = selectedSession,
             displayLap = displayLap,
             onChangeSessionClick = { showSessionDialog = true },
@@ -231,6 +233,7 @@ fun AnalysisContent(
                         ),
                     ) {
                         AnalysisMapWidget(
+                            speedUnit = speedUnit,
                             lap = displayLap,
                             comparisonLap = comparisonLap,
                             selectedIndex = globalSelectedIndex,
@@ -254,6 +257,7 @@ fun AnalysisContent(
                             ),
                         ) {
                             AnalysisGraphWidget(
+                                speedUnit = speedUnit,
                                 lap = displayLap,
                                 comparisonLap = comparisonLap,
                                 metric = currentMetric,
@@ -264,6 +268,7 @@ fun AnalysisContent(
                         }
 
                         AnalysisMetricSelector(
+                            speedUnit = speedUnit,
                             currentMetric = currentMetric,
                             onMetricSelected = { currentMetric = it },
                         )
@@ -285,6 +290,7 @@ fun AnalysisContent(
                         ),
                     ) {
                         AnalysisMapWidget(
+                            speedUnit = speedUnit,
                             lap = displayLap,
                             comparisonLap = comparisonLap,
                             selectedIndex = globalSelectedIndex,
@@ -303,6 +309,7 @@ fun AnalysisContent(
                         ),
                     ) {
                         AnalysisGraphWidget(
+                            speedUnit = speedUnit,
                             lap = displayLap,
                             comparisonLap = comparisonLap,
                             metric = currentMetric,
@@ -313,6 +320,7 @@ fun AnalysisContent(
                     }
 
                     AnalysisMetricSelector(
+                        speedUnit = speedUnit,
                         currentMetric = currentMetric,
                         onMetricSelected = { currentMetric = it },
                     )

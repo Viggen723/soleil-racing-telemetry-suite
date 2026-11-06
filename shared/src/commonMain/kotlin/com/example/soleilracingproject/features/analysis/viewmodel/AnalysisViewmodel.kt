@@ -1,5 +1,8 @@
 package com.example.soleilracingproject.features.analysis.viewmodel
 
+import com.example.soleilracingproject.model.settings.AppSettings
+import com.example.soleilracingproject.model.settings.SpeedUnit
+import com.example.soleilracingproject.features.settings.data.SettingsRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.soleilracingproject.features.analysis.data.AnalysisRepository
@@ -13,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -20,7 +24,12 @@ import kotlinx.coroutines.launch
 class AnalysisViewModel(
     private val repository: AnalysisRepository? = null,
     private val garageRepository: GarageRepository? = null,
+    settingsRepository: SettingsRepository? = null,
 ) : ViewModel() {
+
+    val speedUnit = (settingsRepository?.settings ?: flowOf(AppSettings()))
+        .map { it.speedUnit }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SpeedUnit.MPH)
 
     val sessionsState: StateFlow<List<Session>> = (repository?.getAllSessions() ?: flowOf(emptyList()))
         .stateIn(

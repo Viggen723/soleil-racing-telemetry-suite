@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.features.analysis.ui.widgets
 
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,7 @@ fun AnalysisGraphWidget(
     selectedIndex: Int?,
     onPointSelected: (Int?) -> Unit,
     modifier: Modifier = Modifier,
+    speedUnit: SpeedUnit = SpeedUnit.MPH,
     comparisonLap: Lap? = null,
 ) {
     val telemetry = lap?.telemetryPoints ?: emptyList()
@@ -49,6 +51,7 @@ fun AnalysisGraphWidget(
         return
     }
 
+    // Keep graph coordinates in MPH; labels and callouts use the selected unit.
     val primaryMax = telemetry.maxOfOrNull { metric.extractValue(it) } ?: 100f
     val primaryMin = telemetry.minOfOrNull { metric.extractValue(it) } ?: 0f
     val compMax = compTelemetry.maxOfOrNull { metric.extractValue(it) } ?: primaryMax
@@ -76,6 +79,7 @@ fun AnalysisGraphWidget(
             .padding(12.dp),
     ) {
         GraphHeaderRow(
+            speedUnit = speedUnit,
             metric = metric,
             selectedPoint = selectedIndex?.let { telemetry.getOrNull(it) },
             comparisonPoint = selectedIndex?.let { idx ->
@@ -95,6 +99,7 @@ fun AnalysisGraphWidget(
                 .weight(1f),
         ) {
             GraphYAxisLabels(
+                speedUnit = speedUnit,
                 metric = metric,
                 maxValue = maxValue,
                 minValue = minValue,
@@ -121,6 +126,7 @@ fun AnalysisGraphWidget(
                 )
 
                 GraphTooltipBadge(
+                    speedUnit = speedUnit,
                     telemetry = telemetry,
                     compTelemetry = compTelemetry,
                     metric = metric,

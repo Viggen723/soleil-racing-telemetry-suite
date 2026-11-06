@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.features.hud.ui.widget
 
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -51,15 +52,25 @@ fun WidgetRenderer(
     onNextDeltaMode: () -> Unit = {},
     modifier: Modifier = Modifier,
     speedometerMax: Float = 180f,
+    speedUnit: SpeedUnit = SpeedUnit.MPH,
 ) {
     when (content) {
-        WidgetContent.SPEEDOMETER -> SpeedometerWidget(telemetry = telemetry, maxSpeed = speedometerMax)
+        WidgetContent.SPEEDOMETER -> SpeedometerWidget(telemetry = telemetry, maxSpeed = speedometerMax, speedUnit = speedUnit)
         WidgetContent.ALTITUDE -> AltitudeWidget(telemetry = telemetry)
         WidgetContent.LAP_DELTA -> DeltaWidget(lapDeltas, isRecording, deltaMode, onNextDeltaMode)
         WidgetContent.LAP_TIMES -> LapTimesWidget(laps, isRecording)
         WidgetContent.SPEED_GRAPH -> {
             if (telemetry != null) {
-                GraphWidget(telemetry, title = "SPEED GRAPH", unit = "mph", value = telemetry.speed, history = recentPoints.map { it.speed }, colorByChange = true)
+                GraphWidget(
+                    telemetry,
+                    title = "SPEED GRAPH",
+                    unit = speedUnit.label,
+                    value = speedUnit.fromMph(telemetry.speed),
+                    history = recentPoints.map { speedUnit.fromMph(it.speed) },
+                    colorByChange = true,
+                    // Keep the color thresholds in MPH when the display unit changes.
+                    colorHistory = recentPoints.map { it.speed },
+                )
             } else {
                 LoggerDisconnected("SPEED GRAPH")
             }

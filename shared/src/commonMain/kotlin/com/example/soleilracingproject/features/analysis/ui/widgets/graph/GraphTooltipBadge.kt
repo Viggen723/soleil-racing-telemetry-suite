@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.features.analysis.ui.widgets.graph
 
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,7 @@ fun GraphTooltipBadge(
     startPointTime: Long,
     topPaddingDp: Dp,
     modifier: Modifier = Modifier,
+    speedUnit: SpeedUnit = SpeedUnit.MPH,
 ) {
     val labelStyle = MaterialTheme.typography.labelSmall
     val primaryColor = Color(0xFFD71344) // Soleil Red
@@ -40,7 +42,7 @@ fun GraphTooltipBadge(
         val selectedPt = telemetry.getOrNull(index)
         if (selectedPt != null) {
             val fraction = index.toFloat() / (telemetry.size - 1).coerceAtLeast(1)
-            val valStr = metric.formatValue(metric.extractValue(selectedPt))
+            val valStr = metric.formatValue(metric.extractValue(selectedPt), speedUnit = speedUnit)
             val ptTimeMs = (selectedPt.time.toLong() - startPointTime).coerceAtLeast(0L)
             val timeStr = formatGraphTime(ptTimeMs)
 
@@ -84,9 +86,9 @@ fun GraphTooltipBadge(
                             )
                         }
                         if (compPt != null) {
-                            val compValStr = metric.formatValue(metric.extractValue(compPt))
+                            val compValStr = metric.formatValue(metric.extractValue(compPt), speedUnit = speedUnit)
                             val diff = metric.extractValue(selectedPt) - metric.extractValue(compPt)
-                            val diffStr = if (diff >= 0) "+${metric.formatValue(diff)}" else metric.formatValue(diff)
+                            val diffStr = if (diff >= 0) "+${metric.formatValue(diff, speedUnit = speedUnit)}" else metric.formatValue(diff, speedUnit = speedUnit)
 
                             Text(
                                 text = "$compValStr ($diffStr)",

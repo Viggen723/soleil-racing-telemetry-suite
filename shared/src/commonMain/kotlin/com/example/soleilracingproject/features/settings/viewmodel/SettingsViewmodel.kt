@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.features.settings.viewmodel
 
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.soleilracingproject.features.settings.data.SettingsRepository
@@ -26,12 +27,16 @@ class SettingsViewModel(private val repository: SettingsRepository) : ViewModel(
     }
     fun updateSpeedometerMax(value: String, onSaved: () -> Unit = {}) {
         val parsed = value.trim().toFloatOrNull()
-        if (parsed == null || !AppSettings.isValidSpeedometerMax(parsed)) {
-            _error.value = "Enter a maximum from 10 to 500 mph."
+        val unit = settings.value.speedUnit
+        val range = unit.fromMph(AppSettings.speedometerRange.start)..unit.fromMph(AppSettings.speedometerRange.endInclusive)
+        if (parsed == null || !parsed.isFinite() || parsed !in range) {
+            _error.value = "Enter a maximum from ${range.start} to ${range.endInclusive} ${unit.label}."
             return
         }
-        write(onSaved) { repository.updateSpeedometerMax(parsed) }
+        // Convert back before saving so the stored max stays in MPH.
+        write(onSaved) { repository.updateSpeedometerMax(unit.toMph(parsed).coerceIn(AppSettings.speedometerRange)) }
     }
+    fun updateSpeedUnit(value: SpeedUnit) = write({}) { repository.updateSpeedUnit(value) }
     fun updateFocusModeEnabled(value: Boolean, onSaved: () -> Unit = {}) = write(onSaved) {
         repository.updateFocusModeEnabled(value)
     }

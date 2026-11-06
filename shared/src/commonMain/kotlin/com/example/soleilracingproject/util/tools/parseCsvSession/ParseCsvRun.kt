@@ -48,12 +48,15 @@ object CsvTelemetryParser {
                             header == "gz" || header.contains("accz") || header == "g_z" || header == "vert_g"
 
                     TelemetryColumn.SPEED -> header.contains("speed") || header.contains("spd") || header == "v" ||
-                            header.contains("velocity") || header.contains("kph") || header.contains("mph")
+                            header.contains("velocity") || header.contains("kph") || header.contains("kmh") || header.contains("mph")
 
                     else -> header == enumCol.header.lowercase()
                 }
             }
         }
+
+        val speedHeader = rawHeaders.getOrNull(columnIndexMap[TelemetryColumn.SPEED] ?: -1).orEmpty()
+        val speedIsKph = speedHeader.contains("kph") || speedHeader.contains("kmh")
 
         fun fixCoord(value: Float): Float {
             var v = value
@@ -98,7 +101,10 @@ object CsvTelemetryParser {
                     accelZ = rawAccelZ,
                     latitude = lat,
                     longitude = lon,
-                    speed = getValue(TelemetryColumn.SPEED)?.toFloatOrNull() ?: 0f,
+                    // CSV can call this KPH, but the rest of the app stores speed as MPH.
+                    speed = (getValue(TelemetryColumn.SPEED)?.toFloatOrNull() ?: 0f).let {
+                        if (speedIsKph) ConversionTools.kphToMph(it) else it
+                    },
                     qw = getValue(TelemetryColumn.QW)?.toFloatOrNull() ?: 1f,
                     qi = getValue(TelemetryColumn.QI)?.toFloatOrNull() ?: 0f,
                     qj = getValue(TelemetryColumn.QJ)?.toFloatOrNull() ?: 0f,

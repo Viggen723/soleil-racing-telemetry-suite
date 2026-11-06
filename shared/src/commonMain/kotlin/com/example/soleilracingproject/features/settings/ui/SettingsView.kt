@@ -1,5 +1,7 @@
 package com.example.soleilracingproject.features.settings.ui
 
+import com.example.soleilracingproject.model.settings.AppSettings
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +25,9 @@ fun SettingsView(viewModel: SettingsViewModel, modifier: Modifier = Modifier) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
+    val unit = settings.speedUnit
+    val minimum = unit.fromMph(AppSettings.speedometerRange.start)
+    val maximum = unit.fromMph(AppSettings.speedometerRange.endInclusive)
     var editing by rememberSaveable { mutableStateOf<String?>(null) }
     // Only the unsaved dialog text lives here; Room owns the actual preferences.
     var draft by rememberSaveable { mutableStateOf("") }
@@ -40,9 +45,24 @@ fun SettingsView(viewModel: SettingsViewModel, modifier: Modifier = Modifier) {
             editing = "name"
         }
         Text("Display", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        SettingsRow("Speedometer Maximum", "${settings.speedometerMax.formatOneDecimal()} mph", !isSaving) {
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Speed Unit", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SpeedUnit.entries.forEach { option ->
+                        FilterChip(
+                            selected = unit == option,
+                            onClick = { viewModel.updateSpeedUnit(option) },
+                            enabled = !isSaving,
+                            label = { Text(option.label) },
+                        )
+                    }
+                }
+            }
+        }
+        SettingsRow("Speedometer Maximum", "${unit.fromMph(settings.speedometerMax).formatOneDecimal()} ${unit.label}", !isSaving) {
             viewModel.clearError()
-            draft = settings.speedometerMax.formatOneDecimal()
+            draft = unit.fromMph(settings.speedometerMax).toString()
             editing = "maximum"
         }
         Text("Driving", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
@@ -79,11 +99,11 @@ fun SettingsView(viewModel: SettingsViewModel, modifier: Modifier = Modifier) {
                         onValueChange = { draft = it; viewModel.clearError() },
                         enabled = !isSaving,
                         singleLine = true,
-                        label = { Text(if (isMaximum) "Maximum (mph)" else "Display Name") },
+                        label = { Text(if (isMaximum) "Maximum (${unit.label})" else "Display Name") },
                         keyboardOptions = KeyboardOptions(keyboardType = if (isMaximum) KeyboardType.Decimal else KeyboardType.Text),
                         isError = error != null,
                     )
-                    Text(if (isMaximum) "Choose a value from 10 to 500 mph." else "Stored only on this device. A blank name is fine.", style = MaterialTheme.typography.bodySmall)
+                    Text(if (isMaximum) "Choose a value from $minimum to $maximum ${unit.label}." else "Stored only on this device. A blank name is fine.", style = MaterialTheme.typography.bodySmall)
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 }
             },

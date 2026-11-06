@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.features.analysis.ui.widgets
 
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +19,7 @@ fun AnalysisMetricSelector(
     currentMetric: TelemetryMetric,
     onMetricSelected: (TelemetryMetric) -> Unit,
     modifier: Modifier = Modifier,
+    speedUnit: SpeedUnit = SpeedUnit.MPH,
 ) {
     Row(
         modifier = modifier
@@ -34,7 +36,7 @@ fun AnalysisMetricSelector(
                 ),
                 modifier = Modifier.weight(1f),
             ) {
-                Text(metric.title)
+                Text(metric.displayTitle(speedUnit))
             }
         }
     }

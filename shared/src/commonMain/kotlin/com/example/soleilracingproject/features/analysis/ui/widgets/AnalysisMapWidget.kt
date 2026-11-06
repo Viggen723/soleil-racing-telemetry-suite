@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.features.analysis.ui.widgets
 
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -57,6 +58,7 @@ fun AnalysisMapWidget(
     selectedIndex: Int?,
     onPointSelected: (Int?) -> Unit,
     modifier: Modifier = Modifier,
+    speedUnit: SpeedUnit = SpeedUnit.MPH,
     comparisonLap: Lap? = null,
 ) {
     val lapPoints: List<TelemetryPoint> = remember(lap) {
@@ -299,7 +301,7 @@ fun AnalysisMapWidget(
                     Column(modifier = Modifier.padding(8.dp)) {
                         if (point != null) {
                             Text(
-                                text = "${point.speed.formatOneDecimal()} mph | X:${point.accelX.formatOneDecimal()}G Y:${point.accelY.formatOneDecimal()}G",
+                                text = "${speedUnit.fromMph(point.speed).formatOneDecimal()} ${speedUnit.label} | X:${point.accelX.formatOneDecimal()}G Y:${point.accelY.formatOneDecimal()}G",
                                 color = primaryColor,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -307,7 +309,7 @@ fun AnalysisMapWidget(
                         }
                         if (compPoint != null) {
                             Text(
-                                text = "${compPoint.speed.formatOneDecimal()} mph | X:${compPoint.accelX.formatOneDecimal()}G Y:${compPoint.accelY.formatOneDecimal()}G",
+                                text = "${speedUnit.fromMph(compPoint.speed).formatOneDecimal()} ${speedUnit.label} | X:${compPoint.accelX.formatOneDecimal()}G Y:${compPoint.accelY.formatOneDecimal()}G",
                                 color = comparisonColor,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,

@@ -30,8 +30,8 @@ import kotlin.math.roundToInt
 // Settings we can tune
 private const val SAMPLES_PER_SECOND = 10f  // how many readings the logger sends per second
 private const val LOOKBACK = 5              // compare with the speed 5 readings ago (= half a second)
-private const val DEAD_ZONE = 2f            // below this many km/h per second, we call it "steady"
-private const val HARD_CHANGE = 30f         // at this many km/h per second, the color is at its darkest
+private const val DEAD_ZONE = 2f            // below this many MPH per second, we call it "steady"
+private const val HARD_CHANGE = 30f         // at this many MPH per second, the color is at its darkest
 
 private val SteadyColor = Color(0xFF9E9E9E)
 private val AccelLight = Color(0xFFA5D6A7)
@@ -47,7 +47,7 @@ private fun segmentColors(speeds: List<Float>): List<Color> =
             SteadyColor   // if we don't have enough history yet
         } else {
             val change = speeds[i] - speeds[i - LOOKBACK]
-            val rate = change * SAMPLES_PER_SECOND / LOOKBACK    // km/h gained or lost per second
+            val rate = change * SAMPLES_PER_SECOND / LOOKBACK    // MPH gained or lost per second
             val strength = ((abs(rate) - DEAD_ZONE) / (HARD_CHANGE - DEAD_ZONE)).coerceIn(0f, 1f)
             when {
                 rate > DEAD_ZONE -> lerp(AccelLight, AccelDark, strength)    // speeding up: green
@@ -76,6 +76,7 @@ fun GraphWidget(
     value: Float,
     history: List<Float>,
     colorByChange: Boolean = false,
+    colorHistory: List<Float> = history,
     colorBySign: Boolean = false,         // green above zero, pink/red below zero
     centerOnZero: Boolean = false,
     roundTo: Float = 10f,
@@ -107,7 +108,7 @@ fun GraphWidget(
             values = history,
             lineColor = MaterialTheme.colorScheme.primary,
             segmentColors = when {
-                colorByChange -> segmentColors(history)
+                colorByChange -> segmentColors(colorHistory)
                 colorBySign -> colorsBySign(history)
                 else -> emptyList()
             },

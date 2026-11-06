@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.data.local.entity
 
+import androidx.room3.ColumnInfo
 import androidx.room3.Entity
 import androidx.room3.PrimaryKey
 
@@ -9,4 +10,5 @@ data class SettingsEntity(
     val displayName: String = "",
     val speedometerMax: Float = 180f,
     val focusModeEnabled: Boolean = true,
+    @ColumnInfo(defaultValue = "'MPH'") val speedUnit: String = "MPH",
 )

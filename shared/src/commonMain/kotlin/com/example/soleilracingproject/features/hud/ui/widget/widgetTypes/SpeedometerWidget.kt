@@ -1,5 +1,6 @@
 package com.example.soleilracingproject.features.hud.ui.widget.widgetTypes
 
+import com.example.soleilracingproject.model.settings.SpeedUnit
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -31,7 +32,7 @@ private val GaugeOrange = Color(0xFFFF8F00)
 private val GaugeRed = Color(0xFFD50000)
 
 @Composable
-fun SpeedometerWidget(telemetry: TelemetryPoint?, maxSpeed: Float = 180f) {
+fun SpeedometerWidget(telemetry: TelemetryPoint?, maxSpeed: Float = 180f, speedUnit: SpeedUnit = SpeedUnit.MPH) {
     // No data yet (logger not connected) means we show 0
     val speed = telemetry?.speed ?: 0f
 
@@ -96,7 +97,7 @@ fun SpeedometerWidget(telemetry: TelemetryPoint?, maxSpeed: Float = 180f) {
                 color = MaterialTheme.colorScheme.outline
             )
             Text(
-                text = speed.formatOneDecimal(),
+                text = speedUnit.fromMph(speed).formatOneDecimal(),
                 style = MaterialTheme.typography.displayLarge.copy(
                     fontSize = numberSize,
                     lineHeight = numberSize * 1.1f,
@@ -105,7 +106,7 @@ fun SpeedometerWidget(telemetry: TelemetryPoint?, maxSpeed: Float = 180f) {
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "mph",
+                text = "${speedUnit.label} ? MAX ${speedUnit.fromMph(maxSpeed).formatOneDecimal()}",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.outline
             )
