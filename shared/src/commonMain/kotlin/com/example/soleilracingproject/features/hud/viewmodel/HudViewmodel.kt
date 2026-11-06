@@ -19,6 +19,9 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlin.time.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
@@ -31,6 +34,17 @@ import com.example.soleilracingproject.model.settings.AppSettings
 private const val USE_FAKE_DATA = true
 // How many recent readings we remember for the graphs (200 readings = about 20 seconds)
 private const val HISTORY_SIZE = 200
+
+internal fun formatRecordedSessionTitle(
+    epochMillis: Long,
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+): String {
+    val dateTime = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(timeZone)
+    val date = dateTime.date.toString()
+    val hour = dateTime.hour.toString().padStart(2, '0')
+    val minute = dateTime.minute.toString().padStart(2, '0')
+    return "Session $date $hour:$minute"
+}
 
 enum class RecordingState {
     IDLE,
@@ -202,6 +216,8 @@ class HudViewModel(
     fun stopRecording() {
         if (!_isRecording.value) return
 
+        // Use the recording start time so the title matches the saved session date.
+        val recordedSessionStartTime = sessionStartTime
         val sessionPoints = if (allRecordedSessionPoints.size >= 2) {
             allRecordedSessionPoints.toList()
         } else {
@@ -265,10 +281,10 @@ class HudViewModel(
 
             val session = Session(
                 id = currentSessionId,
-                title = "HUD Session (${laps.size} laps)",
+                title = formatRecordedSessionTitle(recordedSessionStartTime),
                 vehicleId = vehicleDisplayName,
                 track = matchedTrack?.trackName ?: "Recorded Session",
-                dateEpoch = sessionStartTime,
+                dateEpoch = recordedSessionStartTime,
                 isSynced = false,
                 laps = laps,
             )
