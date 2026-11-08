@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
@@ -29,6 +30,12 @@ dependencies {
     implementation(libs.androidx.room3.sqlite.wrapper)
 }
 
+// Reads the Maps key from local.properties
+val mapsApiKey: String = Properties().also { props ->
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { props.load(it) }
+}.getProperty("MAPS_API_KEY", "")
+
 android {
     namespace = "com.example.soleilracingproject"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -39,6 +46,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
     packaging {
         resources {

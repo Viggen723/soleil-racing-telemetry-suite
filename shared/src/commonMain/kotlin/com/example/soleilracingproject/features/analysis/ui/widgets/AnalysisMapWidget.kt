@@ -51,6 +51,9 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
+import androidx.compose.runtime.mutableIntStateOf
+import com.example.soleilracingproject.features.analysis.ui.TrackMap
+import com.example.soleilracingproject.features.analysis.ui.isMapAvailable
 
 @Composable
 fun AnalysisMapWidget(
@@ -81,6 +84,8 @@ fun AnalysisMapWidget(
     // Transform State for the moving map and zooming
     var zoomLevel by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+    // Goes up by one each time the recenter button is pressed, so the map re-fits the lap
+    var recenterCount by remember { mutableIntStateOf(0) }
 
     BoxWithConstraints(
         modifier = modifier
@@ -147,6 +152,17 @@ fun AnalysisMapWidget(
                 ConversionTools.createSmoothPath(rdpCompGraphPoints, isClosed = true)
             }
         }
+
+        if (isMapAvailable) {
+            TrackMap(
+                lapPoints = lapPoints,
+                comparisonPoints = compPoints,
+                selectedIndex = selectedIndex,
+                onPointSelected = onPointSelected,
+                recenterCount = recenterCount,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
 
         Canvas(
             modifier = Modifier
@@ -268,6 +284,7 @@ fun AnalysisMapWidget(
                         cap = StrokeCap.Square
                     )
                 }
+            }
 
                 // Selected point markers
                 selectedIndex?.let { index ->
@@ -325,6 +342,7 @@ fun AnalysisMapWidget(
             onClick = {
                 zoomLevel = 1f
                 offset = Offset.Zero
+                recenterCount++  // re-fits the map
             },
             modifier = Modifier
                 .align(Alignment.BottomEnd)

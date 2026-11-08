@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("native.cocoapods")
+   // kotlin("native.cocoapods") // TEMPORARILY off (needs Xcode)
     
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
@@ -28,7 +28,8 @@ kotlin {
     }
     
     jvm()
-    
+
+/* TEMPORARILY off (needs Xcode).
     cocoapods {
         summary = "Shared KMP Code"
         homepage = "https://github.com"
@@ -39,7 +40,8 @@ kotlin {
         ios.deploymentTarget = "15.0"
         pod("FirebaseAuth")
     }
-    
+     */
+
     android {
        namespace = "com.example.soleilracingproject.shared"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -67,6 +69,7 @@ kotlin {
 
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
+            implementation("com.google.maps.android:maps-compose:8.4.0")
         }
         commonMain.dependencies {
             implementation("dev.gitlive:firebase-auth:2.7.0")
