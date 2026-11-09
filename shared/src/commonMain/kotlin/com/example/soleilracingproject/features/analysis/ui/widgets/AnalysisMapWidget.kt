@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -36,6 +39,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -63,6 +67,7 @@ fun AnalysisMapWidget(
     modifier: Modifier = Modifier,
     speedUnit: SpeedUnit = SpeedUnit.MPH,
     comparisonLap: Lap? = null,
+    onInteractionChanged: (Boolean) -> Unit = {},
 ) {
     val lapPoints: List<TelemetryPoint> = remember(lap) {
         lap?.telemetryPoints ?: emptyList()
@@ -86,10 +91,20 @@ fun AnalysisMapWidget(
     var offset by remember { mutableStateOf(Offset.Zero) }
     // Goes up by one each time the recenter button is pressed, so the map re-fits the lap
     var recenterCount by remember { mutableIntStateOf(0) }
+    var showSatelliteMap by remember { mutableStateOf(true) }
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val anyPressed = event.changes.any { it.pressed }
+                        onInteractionChanged(anyPressed)
+                    }
+                }
+            }
             .background(MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         val allCoords = remember(lapCoords, compCoords) {
@@ -153,7 +168,7 @@ fun AnalysisMapWidget(
             }
         }
 
-        if (isMapAvailable) {
+        if (isMapAvailable && showSatelliteMap) {
             TrackMap(
                 lapPoints = lapPoints,
                 comparisonPoints = compPoints,
@@ -284,9 +299,8 @@ fun AnalysisMapWidget(
                         cap = StrokeCap.Square
                     )
                 }
-            }
 
-                // Selected point markers
+                // Selected point markers (INSIDE withTransform so they transform with pan and zoom)
                 selectedIndex?.let { index ->
                     if (index in compGraphPoints.indices) {
                         val compPointOffset = compGraphPoints[index]
@@ -301,6 +315,7 @@ fun AnalysisMapWidget(
                 }
             }
         }
+    }
 
         selectedIndex?.let { index ->
             val point = lapPoints.getOrNull(index)
@@ -337,28 +352,55 @@ fun AnalysisMapWidget(
             }
         }
 
-        // Recenter Button
-        IconButton(
-            onClick = {
-                zoomLevel = 1f
-                offset = Offset.Zero
-                recenterCount++  // re-fits the map
-            },
+        // Controls (Toggle Map / Recenter)
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(8.dp)
-                .size(32.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
-                    shape = RoundedCornerShape(8.dp)
-                ),
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.End,
         ) {
-            Icon(
-                imageVector = Icons.Default.MyLocation,
-                contentDescription = "Recenter Map",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
-            )
+            if (isMapAvailable) {
+                IconButton(
+                    onClick = { showSatelliteMap = !showSatelliteMap },
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(6.dp),
+                ) {
+                    Icon(
+                        imageVector = if (showSatelliteMap) Icons.Default.Layers else Icons.Default.Map,
+                        contentDescription = if (showSatelliteMap) "Switch to Grid View" else "Switch to Map View",
+                        tint = if (showSatelliteMap) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = {
+                    zoomLevel = 1f
+                    offset = Offset.Zero
+                    recenterCount++ // re-fits the map
+                },
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .padding(6.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MyLocation,
+                    contentDescription = "Recenter Map",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }

@@ -55,9 +55,17 @@ actual fun TrackMap(
     // Which readings of the main lap have a GPS fix, and where they are on the map.
     // We keep the reading numbers so a tap on the map can be turned back into a reading.
     val validIndexes = remember(lapPoints) { lapPoints.indices.filter { hasFix(lapPoints[it]) } }
-    val lapPositions = remember(lapPoints) { validIndexes.map { toLatLng(lapPoints[it]) } }
-    val comparisonPositions = remember(comparisonPoints) {
+    val lapPositions: List<LatLng> = remember(lapPoints) { validIndexes.map { toLatLng(lapPoints[it]) } }
+    val comparisonPositions: List<LatLng> = remember(comparisonPoints) {
         comparisonPoints.filter { hasFix(it) }.map { toLatLng(it) }
+    }
+
+    // Pre-calculate LatLng for all indices (null if no GPS fix) for zero-allocation instant scrubbing
+    val lapLatLngs = remember(lapPoints) {
+        lapPoints.map { if (hasFix(it)) toLatLng(it) else null }
+    }
+    val compLatLngs = remember(comparisonPoints) {
+        comparisonPoints.map { if (hasFix(it)) toLatLng(it) else null }
     }
 
     val cameraPositionState = rememberCameraPositionState()
@@ -73,9 +81,13 @@ actual fun TrackMap(
         }
     }
 
-    // How many meters one dp of screen is right now. We use it to keep the dots a steady size
-    // on screen and to decide how close a tap has to be to the line.
-    val oneDp = metersPerDpAt(lapPositions.firstOrNull()?.latitude ?: 0.0, cameraPositionState.position.zoom)
+    // How many meters one dp of screen is right now.
+    // Remember oneDp while moving so pinch-zoom stays native smooth without per-frame JNI circle updates
+    val zoom = cameraPositionState.position.zoom
+    val isMoving = cameraPositionState.isMoving
+    val oneDp = remember(isMoving) {
+        metersPerDpAt(lapPositions.firstOrNull()?.latitude ?: 0.0, zoom)
+    }
 
     GoogleMap(
         modifier = modifier,
@@ -85,6 +97,7 @@ actual fun TrackMap(
             zoomControlsEnabled = false,
             mapToolbarEnabled = false,
             tiltGesturesEnabled = false,
+            rotationGesturesEnabled = false,
         ),
         onMapLoaded = { mapLoaded = true },
         onMapClick = { tap ->
@@ -116,33 +129,37 @@ actual fun TrackMap(
             Polyline(points = lapPositions, color = SoleilRed, width = 10f, zIndex = 1f)
         }
 
-        // Start of the lap: a white dot with a black ring
+        // Start/Finish dot (White dot with a black ring)
         lapPositions.firstOrNull()?.let { start ->
             Circle(
-                center = start, radius = oneDp * 5,
-                fillColor = Color.White, strokeColor = Color.Black, strokeWidth = 4f, zIndex = 2f
+                center = start,
+                radius = oneDp * 3.5,
+                fillColor = Color.White,
+                strokeColor = Color.Black,
+                strokeWidth = 3f,
+                zIndex = 2f
             )
         }
 
         // The selected moment: a dot on each lap (white outline, colored middle)
-        selectedIndex?.let { index ->
-            comparisonPoints.getOrNull(index)?.takeIf { hasFix(it) }?.let { point ->
+        if (selectedIndex != null) {
+            compLatLngs.getOrNull(selectedIndex)?.let { pos ->
                 Circle(
-                    center = toLatLng(point), radius = oneDp * 9,
+                    center = pos, radius = oneDp * 3.2,
                     fillColor = Color.White, strokeColor = Color.White, strokeWidth = 1f, zIndex = 3f
                 )
                 Circle(
-                    center = toLatLng(point), radius = oneDp * 5,
+                    center = pos, radius = oneDp * 1.8,
                     fillColor = ComparisonCyan, strokeColor = ComparisonCyan, strokeWidth = 1f, zIndex = 4f
                 )
             }
-            lapPoints.getOrNull(index)?.takeIf { hasFix(it) }?.let { point ->
+            lapLatLngs.getOrNull(selectedIndex)?.let { pos ->
                 Circle(
-                    center = toLatLng(point), radius = oneDp * 10,
+                    center = pos, radius = oneDp * 3.5,
                     fillColor = Color.White, strokeColor = Color.White, strokeWidth = 1f, zIndex = 5f
                 )
                 Circle(
-                    center = toLatLng(point), radius = oneDp * 6,
+                    center = pos, radius = oneDp * 2.1,
                     fillColor = SoleilRed, strokeColor = SoleilRed, strokeWidth = 1f, zIndex = 6f
                 )
             }

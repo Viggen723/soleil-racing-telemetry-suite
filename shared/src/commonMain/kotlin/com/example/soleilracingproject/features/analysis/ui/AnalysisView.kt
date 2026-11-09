@@ -148,10 +148,12 @@ fun AnalysisContent(
         )
     }
 
+    var isMapInteracting by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState(), enabled = !isMapInteracting)
             .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -238,6 +240,7 @@ fun AnalysisContent(
                             comparisonLap = comparisonLap,
                             selectedIndex = globalSelectedIndex,
                             onPointSelected = { globalSelectedIndex = it },
+                            onInteractionChanged = { isMapInteracting = it },
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -295,6 +298,7 @@ fun AnalysisContent(
                             comparisonLap = comparisonLap,
                             selectedIndex = globalSelectedIndex,
                             onPointSelected = { globalSelectedIndex = it },
+                            onInteractionChanged = { isMapInteracting = it },
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
