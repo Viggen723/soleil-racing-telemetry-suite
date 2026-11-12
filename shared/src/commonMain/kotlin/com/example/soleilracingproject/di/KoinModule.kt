@@ -22,11 +22,11 @@ val sharedModule = module {
     single { HudRepository(get(), get(), get(), get()) }
     single { AnalysisRepository(get(), get(), get()) }
     single { GarageRepository(get()) }
-
     viewModel {
         HudViewModel(
             get(),
             get(),
+            getOrNull(),
             getOrNull(),
             getOrNull()
         )

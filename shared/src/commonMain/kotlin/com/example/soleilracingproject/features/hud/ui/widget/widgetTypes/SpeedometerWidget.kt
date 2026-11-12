@@ -106,7 +106,7 @@ fun SpeedometerWidget(telemetry: TelemetryPoint?, maxSpeed: Float = 180f, speedU
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "${speedUnit.label} ? MAX ${speedUnit.fromMph(maxSpeed).formatOneDecimal()}",
+                text = "${speedUnit.label} | MAX ${speedUnit.fromMph(maxSpeed).formatOneDecimal()}",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.outline
             )

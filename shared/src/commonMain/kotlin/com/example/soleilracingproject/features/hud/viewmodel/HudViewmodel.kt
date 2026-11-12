@@ -30,6 +30,7 @@ import com.example.soleilracingproject.data.local.entity.WidgetLayoutEntity
 import kotlinx.coroutines.Job
 import com.example.soleilracingproject.features.settings.data.SettingsRepository
 import com.example.soleilracingproject.model.settings.AppSettings
+import com.example.soleilracingproject.features.hud.data.RecordingNotifier
 
 private const val USE_FAKE_DATA = true
 // How many recent readings we remember for the graphs (200 readings = about 20 seconds)
@@ -56,7 +57,8 @@ class HudViewModel(
     private val hudRepository: HudRepository,
     settingsRepository: SettingsRepository,
     private val lapDao: LapDao? = null,
-    private val widgetLayoutDao: WidgetLayoutDao? = null
+    private val widgetLayoutDao: WidgetLayoutDao? = null,
+    private val recordingNotifier: RecordingNotifier? = null
 ) : ViewModel() {
     val settings = settingsRepository.settings.stateIn(
         viewModelScope, SharingStarted.Eagerly, AppSettings()
@@ -211,6 +213,7 @@ class HudViewModel(
         currentSessionId = "session_${Random.nextLong().toString(16)}"
         _isRecording.value = true
         _recordingState.value = RecordingState.ARMED
+        recordingNotifier?.recordingStarted()
     }
 
     fun stopRecording() {
@@ -246,6 +249,7 @@ class HudViewModel(
         _lapDeltas.value = LapDeltas()
         _recordingState.value = RecordingState.IDLE
         _isRecording.value = false
+        recordingNotifier?.recordingStopped()
         stopTimer()
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -388,6 +392,7 @@ class HudViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        recordingNotifier?.recordingStopped()
         hudRepository.stopListening()
     }
 }

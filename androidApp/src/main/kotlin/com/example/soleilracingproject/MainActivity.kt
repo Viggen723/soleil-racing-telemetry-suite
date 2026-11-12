@@ -15,11 +15,21 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.soleilracingproject.features.navhost.AppNavigationBar
 import theme.Theme
+import android.Manifest
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
 
 class MainActivity : ComponentActivity() {
+    // The pop-up that asks "Allow Soleil to send you notifications?"
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // Android 13 and newer needs the user's OK to show notifications
+        if (Build.VERSION.SDK_INT >= 33) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
 
         // Hide OS Navigation Bar
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
@@ -36,6 +46,20 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+    // Called when the app is no longer on screen (Home button, another app, locked screen).
+    override fun onStop() {
+        super.onStop()
+        // isChangingConfigurations is true when the screen is only rotating, so we skip that case
+        if (!isChangingConfigurations && RecordingService.isRunning) {
+            RecordingService.remindUser(this)
+        }
+    }
+
+    // The app is on screen again, so the reminder is no longer needed
+    override fun onStart() {
+        super.onStart()
+        RecordingService.clearReminder(this)
     }
 }
 
