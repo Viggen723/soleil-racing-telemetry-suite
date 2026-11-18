@@ -32,9 +32,11 @@ import com.example.soleilracingproject.features.settings.data.SettingsRepository
 import com.example.soleilracingproject.model.settings.AppSettings
 import com.example.soleilracingproject.features.hud.data.RecordingNotifier
 
-private const val USE_FAKE_DATA = true
+private const val USE_FAKE_DATA = false
 // How many recent readings we remember for the graphs (200 readings = about 20 seconds)
 private const val HISTORY_SIZE = 200
+// If no packet arrives for this long, we say the logger is disconnected
+private const val LOGGER_TIMEOUT_MS = 2000L
 
 internal fun formatRecordedSessionTitle(
     epochMillis: Long,
@@ -108,10 +110,15 @@ class HudViewModel(
             WidgetConfig(id = "recording_button_default", content = WidgetContent.RECORDING_BUTTON, title = "Recording Button")
         )
     )
+    // True while telemetry packets keep arriving from the logger
+    private val _isLoggerConnected = MutableStateFlow(false)
+    val isLoggerConnected: StateFlow<Boolean> = _isLoggerConnected.asStateFlow()
+    private var lastPacketTimeMs = 0L
     val widgetLayout: StateFlow<List<WidgetConfig>> = _widgetLayout.asStateFlow()
 
     init {
         loadSavedLayout()
+        watchLoggerConnection()
         if (USE_FAKE_DATA) startFakeData() else startUdpListening()
     }
 
@@ -128,6 +135,8 @@ class HudViewModel(
     }
 
     private fun processTelemetryPoint(point: TelemetryPoint) {
+        lastPacketTimeMs = kotlin.time.Clock.System.now().toEpochMilliseconds()
+        _isLoggerConnected.value = true
         _telemetryState.value = point
         _recentPoints.value = (_recentPoints.value + point).takeLast(HISTORY_SIZE)
 
@@ -182,6 +191,19 @@ class HudViewModel(
         }
     }
 
+    // Twice a second, check whether packets stopped arriving
+    private fun watchLoggerConnection() {
+        viewModelScope.launch {
+            while (true) {
+                val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+                if (now - lastPacketTimeMs > LOGGER_TIMEOUT_MS) {
+                    _isLoggerConnected.value = false
+                }
+                delay(500)
+            }
+        }
+    }
+
     private fun startTimer() {
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
@@ -200,6 +222,7 @@ class HudViewModel(
 
     fun startRecording() {
         if (_recordingState.value != RecordingState.IDLE) return
+        if (!_isLoggerConnected.value) return     // no logger, no recording
         _lapDeltas.value = LapDeltas()
         activeLapBuffer.clear()
         allRecordedSessionPoints.clear()

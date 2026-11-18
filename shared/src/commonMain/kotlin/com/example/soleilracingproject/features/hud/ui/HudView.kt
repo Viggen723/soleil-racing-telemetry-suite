@@ -18,6 +18,7 @@ import com.example.soleilracingproject.model.telemetry.TelemetryPoint
 import com.example.soleilracingproject.util.tools.lapLogic.LapDeltas
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaMode
 import com.example.soleilracingproject.model.analysis.Lap
+import kotlinx.coroutines.launch
 
 // How much bigger the main (center) widget is than each side widget
 private const val MAIN_SIZE = 1.5f
@@ -40,6 +41,9 @@ fun HudView(
     val deltaMode by viewModel.deltaMode.collectAsStateWithLifecycle()
     val laps by viewModel.lapsState.collectAsStateWithLifecycle()
     val recordingSeconds by viewModel.recordingSeconds.collectAsStateWithLifecycle()
+    val isLoggerConnected by viewModel.isLoggerConnected.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }    // holds the little message
+    val scope = rememberCoroutineScope()
     LaunchedEffect(recordingSeconds) {
         onRecordingTimeChange(recordingSeconds)    // tell the navigation bar new time
     }
@@ -47,15 +51,13 @@ fun HudView(
     // Which widget is being replaced right now (null = the list is closed)
     var replacingWidgetId by remember { mutableStateOf<String?>(null) }
 
-    // Focus mode (full screen): only while recording AND moving, and never while editing.
-    // Before, it switched on whenever speed was above 10. That hid the Edit button,
-    // so nobody could edit while data was coming in.
+    // Focus mode (full screen): only while recording and moving, and never while editing.
     val isFocusMode = settings.focusModeEnabled && isRecording && !isEditMode && (telemetry?.speed ?: 0f) > 10f
     LaunchedEffect(isFocusMode) {
         onFocusModeChange(isFocusMode)
     }
 
-    // Top bar: just the Edit / Done button now
+    // Top bar
     LaunchedEffect(isEditMode) {
         onUpdateTopBarActions {
             IconButton(onClick = viewModel::toggleEditMode) {
@@ -72,8 +74,9 @@ fun HudView(
         }
     }
 
+    Box(modifier = modifier.fillMaxSize()) {
     HudContent(
-        telemetry = telemetry,
+        telemetry = if (isLoggerConnected) telemetry else null,
         widgets = widgets,
         isEditMode = isEditMode,
         isRecording = isRecording,
@@ -85,9 +88,19 @@ fun HudView(
             replacingWidgetId = null
         },
         onMakeMain = viewModel::makeMain,
-        onStartRecording = viewModel::startRecording,
+        isLoggerConnected = isLoggerConnected,
+        onStartRecording = {
+            if (isLoggerConnected) {
+                viewModel.startRecording()
+            } else {
+                // If there is no logger connected don't start, tell the user instead
+                scope.launch {
+                    snackbarHostState.currentSnackbarData?.dismiss()    // replace an older message
+                    snackbarHostState.showSnackbar("Logger disconnected. Connect the logger to start recording.")
+                }
+            }
+        },
         onStopRecording = viewModel::stopRecording,
-        modifier = modifier,
         lapDeltas = lapDeltas,
         recentPoints = recentPoints,
         deltaMode = deltaMode,
@@ -100,6 +113,11 @@ fun HudView(
             if (!isEditMode && !isFocusMode) viewModel.toggleEditMode()
         },
     )
+        SnackbarHost(                                                  //where the message appears
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+        )
+}
 }
 
 // Separated content composable for modular layout & previews
@@ -116,6 +134,7 @@ fun HudContent(
     onMakeMain: (index: Int) -> Unit = {},
     onStartRecording: () -> Unit = {},
     onStopRecording: () -> Unit = {},
+    isLoggerConnected: Boolean = true,
     modifier: Modifier = Modifier,
     lapDeltas: LapDeltas = LapDeltas(),
     recentPoints: List<TelemetryPoint> = emptyList(),
@@ -146,6 +165,7 @@ fun HudContent(
                         laps = laps,
                         speedometerMax = speedometerMax,
                         speedUnit = speedUnit,
+                        isLoggerConnected = isLoggerConnected,
                     )
 
                     if (isEditMode) {

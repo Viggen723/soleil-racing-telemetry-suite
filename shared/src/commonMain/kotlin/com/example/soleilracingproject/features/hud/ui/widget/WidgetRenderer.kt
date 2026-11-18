@@ -7,6 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.AltitudeWidget
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.SpeedometerWidget
@@ -19,6 +20,7 @@ import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaW
 import com.example.soleilracingproject.util.tools.lapLogic.LapDeltas
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaMode
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.LapTimesWidget
+import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.LoggerStatusIndicator
 import com.example.soleilracingproject.model.analysis.Lap
 
 @Composable
@@ -50,6 +52,7 @@ fun WidgetRenderer(
     laps: List<Lap> = emptyList(),
     deltaMode: DeltaMode = DeltaMode.BEST_LAP,
     onNextDeltaMode: () -> Unit = {},
+    isLoggerConnected: Boolean = true,
     modifier: Modifier = Modifier,
     speedometerMax: Float = 180f,
     speedUnit: SpeedUnit = SpeedUnit.MPH,
@@ -83,16 +86,21 @@ fun WidgetRenderer(
             }
         }
         WidgetContent.RECORDING_BUTTON -> {
-            Box(
-                modifier = modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = modifier.fillMaxSize().padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
+                LoggerStatusIndicator(isConnected = isLoggerConnected)
+                Spacer(modifier = Modifier.height(10.dp))
                 StartButtonWidget(
                     isRecording = isRecording,
                     onToggleRecording = { if (isRecording) onStopRecording() else onStartRecording() },
-                    modifier = Modifier.fillMaxWidth().height(64.dp)
+                    // Dim the button when there is no logger, but never while recording (Stop must stay clear)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                        .alpha(if (isLoggerConnected || isRecording) 1f else 0.5f)
                 )
             }
         }
