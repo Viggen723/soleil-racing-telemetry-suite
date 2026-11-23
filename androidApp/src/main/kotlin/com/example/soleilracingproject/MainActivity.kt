@@ -18,6 +18,7 @@ import theme.Theme
 import android.Manifest
 import android.os.Build
 import androidx.activity.result.contract.ActivityResultContracts
+import com.example.soleilracingproject.RecordingService
 
 class MainActivity : ComponentActivity() {
     // The pop-up that asks "Allow Soleil to send you notifications?"
