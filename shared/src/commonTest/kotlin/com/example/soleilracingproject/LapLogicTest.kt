@@ -1,13 +1,10 @@
 package com.example.soleilracingproject
 
-import com.example.soleilracingproject.model.analysis.KnownTracks
 import com.example.soleilracingproject.model.telemetry.GpsGate
 import com.example.soleilracingproject.model.telemetry.TelemetryPoint
 import com.example.soleilracingproject.util.tools.lapLogic.LapLogic
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class LapLogicTest {
@@ -39,36 +36,13 @@ class LapLogicTest {
         assertFalse(LapLogic.hasCrossedGpsGate(valid, valid, null))
     }
 
-    @Test fun maishimaAutocrossGateCrossingAndMatching() {
-        val maishima = KnownTracks.MAISHIMA_AUTOCROSS
-        assertNotNull(maishima)
-
-        val pts = listOf(point(34.66828f, 135.39280f, 1000))
-        val matched = KnownTracks.findMatchingTrack(pts)
-        assertNotNull(matched)
-        assertEquals("Maishima Autocross", matched.trackName)
-    }
-
-    @Test fun limeRockParkGateCrossingAndTrackMatching() {
-        val limeRock = KnownTracks.LIME_ROCK_PARK
-        assertNotNull(limeRock)
-
-        val beforeGate = point(41.9288f, -73.3845f, 1000)
-        val afterGate = point(41.9288f, -73.3830f, 2000)
-
-        val matchedTrackNeg = KnownTracks.findMatchingTrack(listOf(beforeGate))
-        assertNotNull(matchedTrackNeg)
-        assertEquals("Lime Rock Park", matchedTrackNeg.trackName)
-
-        val positiveLonPoint = point(41.9288f, 73.3845f, 1000)
-        val matchedTrackPos = KnownTracks.findMatchingTrack(listOf(positiveLonPoint))
-        assertNotNull(matchedTrackPos)
-
-        assertTrue(LapLogic.hasCrossedGpsGate(beforeGate, afterGate, limeRock.startFinishGate))
-    }
-
     @Test fun limeRockMultiLapSessionSplitting() {
-        val limeRockGate = KnownTracks.LIME_ROCK_PARK.startFinishGate
+        val limeRockGate = GpsGate(
+            lat1 = 41.9260,
+            lon1 = -73.3837,
+            lat2 = 41.9300,
+            lon2 = -73.3837
+        )
 
         val pts = mutableListOf<TelemetryPoint>()
         var t = 0

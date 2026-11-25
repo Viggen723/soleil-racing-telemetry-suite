@@ -6,7 +6,6 @@ import com.example.soleilracingproject.data.local.dao.LapDao
 import com.example.soleilracingproject.features.hud.data.HudRepository
 import com.example.soleilracingproject.features.hud.ui.widget.*
 import com.example.soleilracingproject.features.hud.ui.widget.widgetTypes.DeltaMode
-import com.example.soleilracingproject.model.analysis.KnownTracks
 import com.example.soleilracingproject.model.analysis.Lap
 import com.example.soleilracingproject.model.analysis.Session
 import com.example.soleilracingproject.model.telemetry.GpsGate
@@ -60,7 +59,8 @@ class HudViewModel(
     settingsRepository: SettingsRepository,
     private val lapDao: LapDao? = null,
     private val widgetLayoutDao: WidgetLayoutDao? = null,
-    private val recordingNotifier: RecordingNotifier? = null
+    private val recordingNotifier: RecordingNotifier? = null,
+    private val trackRepository: com.example.soleilracingproject.features.analysis.data.TrackRepository? = null
 ) : ViewModel() {
     val settings = settingsRepository.settings.stateIn(
         viewModelScope, SharingStarted.Eagerly, AppSettings()
@@ -119,7 +119,12 @@ class HudViewModel(
     init {
         loadSavedLayout()
         watchLoggerConnection()
-        if (USE_FAKE_DATA) startFakeData() else startUdpListening()
+        startUdpListening()
+    }
+
+    fun reconnectUdp() {
+        hudRepository.stopListening()
+        startUdpListening()
     }
 
     private fun startUdpListening() {
@@ -165,29 +170,6 @@ class HudViewModel(
         previousPoint = point.takeIf {
             it.latitude.isFinite() && it.longitude.isFinite() &&
                     it.latitude in -90f..90f && it.longitude in -180f..180f
-        }
-    }
-
-    private fun startFakeData() {
-        viewModelScope.launch {
-            var t = 0
-            while (true) {
-                val angle = t * 0.03f + 0.3f * sin(t / 100f)
-                val fakePoint = TelemetryPoint(
-                    time = t * 100,
-                    accelX = cos(t / 15f),
-                    accelY = 0.8f * sin(t / 25f),
-                    accelZ = 0f,
-                    latitude = 35.68f + 0.0009f * sin(angle),
-                    longitude = 139.69f + 0.0011f * cos(angle),
-                    speed = 100f + 80f * sin(t / 15f),
-                    qw = 1f, qi = 0f, qj = 0f, qk = 0f,
-                    altitude = 20f + 5f * sin(t / 40f)
-                )
-                processTelemetryPoint(fakePoint)
-                t++
-                delay(100)
-            }
         }
     }
 
@@ -276,7 +258,7 @@ class HudViewModel(
         stopTimer()
 
         viewModelScope.launch(Dispatchers.IO) {
-            val matchedTrack = KnownTracks.findMatchingTrack(sessionPoints)
+            val matchedTrack = trackRepository?.findMatchingTrack(sessionPoints)
             val presetGate = matchedTrack?.startFinishGate
             val autoGate = LapLogic.autoGenerateGate(sessionPoints)
             val gateToUse = presetGate ?: autoGate ?: detectedGate ?: finishGate
@@ -327,8 +309,9 @@ class HudViewModel(
     private fun hasCrossedGpsGate(point: TelemetryPoint): Boolean {
         val gateToUse = finishGate ?: detectedGate ?: run {
             if (point.latitude != 0f || point.longitude != 0f) {
-                val matched = KnownTracks.findMatchingTrack(listOf(point))
-                detectedGate = matched?.startFinishGate
+                // To avoid doing DB ops on every frame during live UDP polling, we only generate auto-gates after stop.
+                // We'll rely on the default stopRecording loop to parse out sectors later if no preset gate is loaded.
+                detectedGate = null
             }
             detectedGate
         }

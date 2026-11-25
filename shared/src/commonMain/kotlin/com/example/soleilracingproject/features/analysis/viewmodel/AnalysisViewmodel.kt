@@ -7,7 +7,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.soleilracingproject.features.analysis.data.AnalysisRepository
 import com.example.soleilracingproject.features.garage.data.GarageRepository
-import com.example.soleilracingproject.model.analysis.KnownTracks
 import com.example.soleilracingproject.model.analysis.Session
 import com.example.soleilracingproject.model.garage.Car
 import com.example.soleilracingproject.util.tools.lapLogic.LapLogic
@@ -25,6 +24,7 @@ class AnalysisViewModel(
     private val repository: AnalysisRepository? = null,
     private val garageRepository: GarageRepository? = null,
     settingsRepository: SettingsRepository? = null,
+    private val trackRepository: com.example.soleilracingproject.features.analysis.data.TrackRepository? = null,
 ) : ViewModel() {
 
     val speedUnit = (settingsRepository?.settings ?: flowOf(AppSettings()))
@@ -54,7 +54,7 @@ class AnalysisViewModel(
             val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
             val uniqueSessionId = "imported_session_$now"
 
-            val matchedTrack = KnownTracks.findMatchingTrack(parsedPoints)
+            val matchedTrack = trackRepository?.findMatchingTrack(parsedPoints)
             val presetGate = matchedTrack?.startFinishGate
             val autoGate = LapLogic.autoGenerateGate(parsedPoints)
             val gateToUse = presetGate ?: autoGate

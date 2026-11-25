@@ -5,6 +5,8 @@ import com.example.soleilracingproject.features.hud.viewmodel.HudViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +31,7 @@ fun HudView(
     onUpdateTopBarActions: ((@Composable RowScope.() -> Unit)?) -> Unit = {},
     onFocusModeChange: (Boolean) -> Unit = {},
     onRecordingTimeChange: (Long) -> Unit = {},
+    onNavigateToCustomTracks: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val telemetry by viewModel.telemetryState.collectAsStateWithLifecycle()
@@ -57,17 +60,43 @@ fun HudView(
         onFocusModeChange(isFocusMode)
     }
 
-    // Top bar
-    LaunchedEffect(isEditMode) {
+    // Top bar: Dropdown Menu with "Edit Layout" and "Custom Tracks"
+    var showMenu by remember { mutableStateOf(false) }
+    LaunchedEffect(isEditMode, showMenu) {
         onUpdateTopBarActions {
-            IconButton(onClick = viewModel::toggleEditMode) {
-                Text(if (isEditMode) "Done" else "Edit")
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Options"
+                    )
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(if (isEditMode) "Done Editing" else "Edit Layout") },
+                        onClick = {
+                            viewModel.toggleEditMode()
+                            showMenu = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Custom Tracks") },
+                        onClick = {
+                            showMenu = false
+                            onNavigateToCustomTracks()
+                        }
+                    )
+                }
             }
         }
     }
 
     // Clear top bar actions only when leaving the HUD screen
     DisposableEffect(Unit) {
+        viewModel.reconnectUdp()
         onDispose {
             onUpdateTopBarActions(null)
             onFocusModeChange(false)

@@ -16,20 +16,29 @@ import com.example.soleilracingproject.data.local.entity.CarEntity
 import com.example.soleilracingproject.data.local.entity.SessionEntity
 import com.example.soleilracingproject.data.local.entity.TelemetryPointEntity
 import com.example.soleilracingproject.data.local.dao.WidgetLayoutDao
+import com.example.soleilracingproject.data.local.dao.TrackDao
+import com.example.soleilracingproject.data.local.entity.TrackEntity
 import com.example.soleilracingproject.data.local.entity.WidgetLayoutEntity
 
 // https://developer.android.com/kotlin/multiplatform/room?hl=ja
 // https://medium.com/@hidayatasep43/implementing-room-database-in-kotlin-multiplatform-a-step-by-step-guide-2bc3e1b3aa16
 @Database(
-    version = 5,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5)],
+    version = 6,
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2), 
+        AutoMigration(from = 2, to = 3), 
+        AutoMigration(from = 3, to = 4), 
+        AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 5, to = 6)
+    ],
     entities = [
         TelemetryPointEntity::class,
         LapEntity::class,
         SessionEntity::class,
         CarEntity::class,
         WidgetLayoutEntity::class,
-        SettingsEntity::class],
+        SettingsEntity::class,
+        TrackEntity::class],
 exportSchema = true
 )
 @ConstructedBy(AppDatabaseConstructor:: class)
@@ -41,6 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
     abstract fun carDao(): CarDao
     abstract fun widgetLayoutDao(): WidgetLayoutDao
+    abstract fun trackDao(): TrackDao
 }
 
 @Suppress("KotlinNoActualForExpect") // When compiles, does not through "no actual implementation" error

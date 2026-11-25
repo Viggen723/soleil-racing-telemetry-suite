@@ -26,4 +26,5 @@ val appModule = module {
     single { get<AppDatabase>().lapDao() }
     single { get<AppDatabase>().telemetryDao() }
     single { get<AppDatabase>().carDao() }
+    single { get<AppDatabase>().trackDao() }
 }

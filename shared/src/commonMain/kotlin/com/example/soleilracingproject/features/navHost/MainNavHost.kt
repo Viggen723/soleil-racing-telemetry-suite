@@ -71,7 +71,10 @@ fun MainNavHost(
                 viewModel = hudViewModel,
                 onUpdateTopBarActions = onUpdateTopBarActions,
                 onFocusModeChange = onFocusModeChange,
-                onRecordingTimeChange = onRecordingTimeChange
+                onRecordingTimeChange = onRecordingTimeChange,
+                onNavigateToCustomTracks = {
+                    navHostController.navigate(Route.CustomTrack)
+                }
             )
         }
 
@@ -90,6 +93,15 @@ fun MainNavHost(
                 onFocusModeChange(false)
             }
             GarageView(viewModel = garageViewmodel)
+        }
+
+        composable<Route.CustomTrack> {
+            val customTrackViewModel: com.example.soleilracingproject.features.customtrack.viewmodel.CustomTrackViewModel = koinViewModel()
+            LaunchedEffect(Unit) {
+                onUpdateTopBarActions(null)
+                onFocusModeChange(false)
+            }
+            com.example.soleilracingproject.features.customtrack.ui.CustomTrackView(viewModel = customTrackViewModel)
         }
     }
 }
