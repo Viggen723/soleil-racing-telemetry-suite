@@ -44,9 +44,6 @@ class CustomTrackViewModel(
 
     init {
         viewModelScope.launch {
-            hudRepository.beginListening(4120)
-        }
-        viewModelScope.launch {
             hudRepository.observeTelemetry().collect { pt ->
                 if (pt.latitude != 0f || pt.longitude != 0f) {
                     _currentTelemetry.value = pt
@@ -102,10 +99,5 @@ class CustomTrackViewModel(
         viewModelScope.launch {
             trackRepository.deleteTrack(id)
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        hudRepository.stopListening()
     }
 }

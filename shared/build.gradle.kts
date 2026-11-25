@@ -102,6 +102,9 @@ kotlin {
 
             implementation(libs.kotlin.test)
         }
+        jvmTest.dependencies {
+            runtimeOnly(libs.kotlinx.coroutinesSwing)
+        }
     }
 }
 

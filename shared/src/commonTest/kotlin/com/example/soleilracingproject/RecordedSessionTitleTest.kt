@@ -1,6 +1,6 @@
 package com.example.soleilracingproject
 
-import com.example.soleilracingproject.features.hud.viewmodel.formatRecordedSessionTitle
+import com.example.soleilracingproject.features.hud.data.formatRecordedSessionTitle
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test

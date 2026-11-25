@@ -1,8 +1,7 @@
 package com.example.soleilracingproject.features.analysis.data
 
-import com.example.soleilracingproject.data.local.dao.LapDao
-import com.example.soleilracingproject.data.local.dao.SessionDao
-import com.example.soleilracingproject.data.local.dao.TelemetryDao
+import androidx.room3.withWriteTransaction
+import com.example.soleilracingproject.data.local.AppDatabase
 import com.example.soleilracingproject.data.mapper.toDomain
 import com.example.soleilracingproject.data.mapper.toEntity
 import com.example.soleilracingproject.model.analysis.Lap
@@ -10,11 +9,11 @@ import com.example.soleilracingproject.model.analysis.Session
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class AnalysisRepository(
-    private val sessionDao: SessionDao,
-    private val lapDao: LapDao,
-    private val telemetryDao: TelemetryDao,
-) {
+class AnalysisRepository(private val database: AppDatabase) {
+    private val sessionDao = database.sessionDao()
+    private val lapDao = database.lapDao()
+    private val telemetryDao = database.telemetryDao()
+
     fun getAllSessions(): Flow<List<Session>> {
         return sessionDao.getAllSessionsWithLaps().map { sessionsWithLaps ->
             sessionsWithLaps.map { (sessionEntity, lapWithTelemetryList) ->
@@ -38,7 +37,7 @@ class AnalysisRepository(
         sessionDao.updateSession(session.toEntity())
     }
 
-    suspend fun addSession(session: Session) {
+    suspend fun addSession(session: Session) = database.withWriteTransaction {
         sessionDao.insertSession(session.toEntity())
 
         session.laps.forEach { lap ->
