@@ -1,5 +1,7 @@
 package com.example.soleilracingproject.features.analysis.ui
 
+import com.example.soleilracingproject.features.analysis.data.backup.SessionBackupStatus
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -69,6 +71,7 @@ fun AnalysisContent(
     modifier: Modifier = Modifier,
 ) {
     val speedUnit by viewModel.speedUnit.collectAsStateWithLifecycle()
+    val backupStatuses by viewModel.backupStatuses.collectAsStateWithLifecycle()
     var selectedSession by remember { mutableStateOf<Session?>(null) }
     var showSessionDialog by remember { mutableStateOf(false) }
 
@@ -187,6 +190,10 @@ fun AnalysisContent(
         SessionHighlightsCard(
             speedUnit = speedUnit,
             selectedSession = selectedSession,
+            backupStatus = selectedSession?.let { session ->
+                if (session.isSynced) SessionBackupStatus.CONFIRMED
+                else backupStatuses[session.id] ?: SessionBackupStatus.PENDING
+            },
             displayLap = displayLap,
             onChangeSessionClick = { showSessionDialog = true },
             onRenameSession = { session, newTitle -> viewModel.renameSession(session, newTitle) },

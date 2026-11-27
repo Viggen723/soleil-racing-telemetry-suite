@@ -72,6 +72,7 @@ kotlin {
         }
         commonMain.dependencies {
             implementation("dev.gitlive:firebase-auth:2.7.0")
+            implementation("dev.gitlive:firebase-database:2.7.0")
             implementation("dev.gitlive:firebase-common:2.7.0")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 

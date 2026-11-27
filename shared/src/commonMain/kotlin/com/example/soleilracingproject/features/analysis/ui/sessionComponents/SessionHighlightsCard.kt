@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.soleilracingproject.features.analysis.data.backup.SessionBackupStatus
 import com.example.soleilracingproject.model.analysis.Lap
 import com.example.soleilracingproject.model.analysis.Session
 import com.example.soleilracingproject.model.garage.Car
@@ -49,6 +50,7 @@ fun SessionHighlightsCard(
     speedUnit: SpeedUnit = SpeedUnit.MPH,
     onUpdateVehicle: (Session, String) -> Unit = { _, _ -> },
     garageCars: List<Car> = emptyList(),
+    backupStatus: SessionBackupStatus? = null,
 ) {
     var showRenameDialog by remember { mutableStateOf(false) }
     var showVehicleDialog by remember { mutableStateOf(false) }
@@ -122,6 +124,18 @@ fun SessionHighlightsCard(
                 ) {
                     Text("Change Session")
                 }
+            }
+
+            if (backupStatus != null) {
+                Text(
+                    text = when (backupStatus) {
+                        SessionBackupStatus.PENDING -> "Saved locally · Backup pending"
+                        SessionBackupStatus.UPLOADING -> "Backing up…"
+                        SessionBackupStatus.CONFIRMED -> "Backed up"
+                        SessionBackupStatus.FAILED -> "Backup failed · Will retry"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                )
             }
 
             Row(

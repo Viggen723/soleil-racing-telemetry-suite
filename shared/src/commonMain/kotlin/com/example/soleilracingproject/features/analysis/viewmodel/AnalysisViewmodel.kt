@@ -6,6 +6,7 @@ import com.example.soleilracingproject.features.settings.data.SettingsRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.soleilracingproject.features.analysis.data.AnalysisRepository
+import com.example.soleilracingproject.features.analysis.data.backup.SessionBackupRepository
 import com.example.soleilracingproject.features.garage.data.GarageRepository
 import com.example.soleilracingproject.model.analysis.Session
 import com.example.soleilracingproject.model.garage.Car
@@ -15,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -25,7 +27,9 @@ class AnalysisViewModel(
     private val garageRepository: GarageRepository? = null,
     settingsRepository: SettingsRepository? = null,
     private val trackRepository: com.example.soleilracingproject.features.analysis.data.TrackRepository? = null,
+    backupRepository: SessionBackupRepository? = null,
 ) : ViewModel() {
+    val backupStatuses = backupRepository?.statuses ?: MutableStateFlow(emptyMap())
 
     val speedUnit = (settingsRepository?.settings ?: flowOf(AppSettings()))
         .map { it.speedUnit }

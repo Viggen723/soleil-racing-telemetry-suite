@@ -1,6 +1,11 @@
 package com.example.soleilracingproject.di
 
 import com.example.soleilracingproject.features.analysis.data.AnalysisRepository
+import com.example.soleilracingproject.features.analysis.data.backup.BackupAccount
+import com.example.soleilracingproject.features.analysis.data.backup.FirebaseBackupAccount
+import com.example.soleilracingproject.features.analysis.data.backup.FirebaseBackupTransport
+import com.example.soleilracingproject.features.analysis.data.backup.SessionBackupFormat
+import com.example.soleilracingproject.features.analysis.data.backup.SessionBackupRepository
 import com.example.soleilracingproject.features.analysis.viewmodel.AnalysisViewModel
 import com.example.soleilracingproject.features.garage.data.GarageRepository
 import com.example.soleilracingproject.features.garage.viewmodel.GarageViewmodel
@@ -23,7 +28,16 @@ val sharedModule = module {
     single { SettingsRepository(get()) }
     viewModel { SettingsViewModel(get()) }
     single { HudRepository(get(), get(), get(), get()) }
-    single { AnalysisRepository(get()) }
+    single<BackupAccount> { FirebaseBackupAccount() }
+    single {
+        val account = get<BackupAccount>()
+        AnalysisRepository(get()) { id ->
+            runCatching { account.currentUid()?.let { SessionBackupFormat.path(it, id) } }.getOrNull()
+        }
+    }
+    single(createdAtStart = true) {
+        SessionBackupRepository(get(), get(), FirebaseBackupTransport())
+    } onClose { it?.close() }
     single { GarageRepository(get()) }
     single { TrackRepository(get()) }
     single { RecordingSessionOwner(get(), getOrNull(), getOrNull()) } onClose { it?.close() }
@@ -35,7 +49,7 @@ val sharedModule = module {
             getOrNull()
         )
     }
-    viewModel { AnalysisViewModel(getOrNull(), getOrNull(), get(), getOrNull()) }
+    viewModel { AnalysisViewModel(getOrNull(), getOrNull(), get(), getOrNull(), get()) }
     viewModel { GarageViewmodel(get()) }
     viewModel { com.example.soleilracingproject.features.customtrack.viewmodel.CustomTrackViewModel(get(), get()) }
 }
