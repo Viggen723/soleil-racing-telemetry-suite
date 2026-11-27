@@ -4,7 +4,6 @@ import com.example.soleilracingproject.features.analysis.data.AnalysisRepository
 import com.example.soleilracingproject.features.analysis.data.backup.BackupAccount
 import com.example.soleilracingproject.features.analysis.data.backup.FirebaseBackupAccount
 import com.example.soleilracingproject.features.analysis.data.backup.FirebaseBackupTransport
-import com.example.soleilracingproject.features.analysis.data.backup.SessionBackupFormat
 import com.example.soleilracingproject.features.analysis.data.backup.SessionBackupRepository
 import com.example.soleilracingproject.features.analysis.viewmodel.AnalysisViewModel
 import com.example.soleilracingproject.features.garage.data.GarageRepository
@@ -24,15 +23,18 @@ import com.example.soleilracingproject.features.settings.viewmodel.SettingsViewM
 // https://www.youtube.com/watch?v=TAKZy3uQTdE for a video on dependency injection (di)
 val sharedModule = module {
     single { LoginpageRepository() }
-    viewModel { LoginpageViewmodel(get()) }
+    viewModel {
+        val recording = get<RecordingSessionOwner>()
+        LoginpageViewmodel(get<LoginpageRepository>()) { recording.isRecording.value }
+    }
     single { SettingsRepository(get()) }
     viewModel { SettingsViewModel(get()) }
     single { HudRepository(get(), get(), get(), get()) }
     single<BackupAccount> { FirebaseBackupAccount() }
     single {
         val account = get<BackupAccount>()
-        AnalysisRepository(get()) { id ->
-            runCatching { account.currentUid()?.let { SessionBackupFormat.path(it, id) } }.getOrNull()
+        AnalysisRepository(get()) {
+            runCatching { account.currentUid() }.getOrNull()
         }
     }
     single(createdAtStart = true) {

@@ -2,14 +2,16 @@ package com.example.soleilracingproject.features.loginpage.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.soleilracingproject.features.loginpage.data.LoginpageRepository
+import com.example.soleilracingproject.features.loginpage.data.LoginAuthentication
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class LoginpageViewmodel(
-    private val repository: LoginpageRepository
+    private val repository: LoginAuthentication,
+    private val isRecording: () -> Boolean,
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
@@ -18,13 +20,20 @@ class LoginpageViewmodel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    private val _isAuthenticated = MutableStateFlow(repository.currentUser != null)
-    val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
+    private val _authenticatedUserId = MutableStateFlow(repository.currentUserId)
+    val authenticatedUserId = _authenticatedUserId.asStateFlow()
+
+    private val _isLoggingOut = MutableStateFlow(false)
+    val isLoggingOut = _isLoggingOut.asStateFlow()
+
+    private val _logoutError = MutableStateFlow<String?>(null)
+    val logoutError = _logoutError.asStateFlow()
 
     init {
         viewModelScope.launch {
-            repository.currentUserFlow.collect { user ->
-                _isAuthenticated.value = user != null
+            repository.userIdChanges.collect { uid ->
+                // A local sign-out event can arrive before the operation returns.
+                if (!_isLoggingOut.value) _authenticatedUserId.value = uid
             }
         }
     }
@@ -70,9 +79,29 @@ class LoginpageViewmodel(
     }
 
     fun logout() {
+        if (!_isLoggingOut.compareAndSet(expect = false, update = true)) return
+        _logoutError.value = null
         viewModelScope.launch {
-            repository.logout()
+            try {
+                if (isRecording()) {
+                    _logoutError.value = "Stop recording before logging out."
+                    return@launch
+                }
+                repository.logout()
+                _error.value = null
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _logoutError.value = "Could not log out. Please try again."
+            } finally {
+                _authenticatedUserId.value = repository.currentUserId
+                _isLoggingOut.value = false
+            }
         }
+    }
+
+    fun clearLogoutError() {
+        _logoutError.value = null
     }
 
     fun clearError() {

@@ -26,7 +26,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -34,19 +36,56 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.soleilracingproject.features.navHost.MainNavHost
 import com.example.soleilracingproject.features.navHost.navItems
+import com.example.soleilracingproject.features.loginpage.ui.LoginpageView
+import com.example.soleilracingproject.features.loginpage.viewmodel.LoginpageViewmodel
 import com.example.soleilracingproject.features.shared.SoleilTopBar
+import org.koin.compose.viewmodel.koinViewModel
 
 // https://developer.android.com/develop/ui/compose/components/navigation-bar?hl=ja
 @Composable
 fun AppNavigationBar(
     modifier: Modifier = Modifier,
     isFocusModeParam: Boolean = false,
+) {
+    val loginViewModel: LoginpageViewmodel = koinViewModel()
+    val uid by loginViewModel.authenticatedUserId.collectAsStateWithLifecycle()
+
+    AccountNavigation(uid, signedOut = {
+        Scaffold(modifier = modifier, topBar = { SoleilTopBar() }) { padding ->
+            Box(Modifier.padding(padding)) { LoginpageView(loginViewModel) }
+        }
+    }) {
+        val owner = rememberViewModelStoreOwner()
+        CompositionLocalProvider(LocalViewModelStoreOwner provides owner) {
+            AuthenticatedNavigationBar(loginViewModel, modifier, isFocusModeParam)
+        }
+    }
+}
+
+@Composable
+internal fun AccountNavigation(
+    uid: String?,
+    signedOut: @Composable () -> Unit,
+    signedIn: @Composable () -> Unit,
+) {
+    // Disposing the whole account branch drops both live and saved tab history.
+    if (uid == null) signedOut() else key(uid) { signedIn() }
+}
+
+@Composable
+private fun AuthenticatedNavigationBar(
+    loginViewModel: LoginpageViewmodel,
+    modifier: Modifier,
+    isFocusModeParam: Boolean,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -71,7 +110,7 @@ fun AppNavigationBar(
         },
         bottomBar = {
             AnimatedVisibility(
-                visible = currentDestination?.hasRoute(com.example.soleilracingproject.features.navHost.Route.Login::class) != true,
+                visible = currentDestination != null,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -162,6 +201,7 @@ fun AppNavigationBar(
     ) { padding ->
         MainNavHost(
             navHostController = navController,
+            loginViewModel = loginViewModel,
             onUpdateTopBarActions = { actions -> topBarActions = actions },
             onFocusModeChange = { focus -> isFocusMode = focus },
             onRecordingTimeChange = { recordingSeconds = it },

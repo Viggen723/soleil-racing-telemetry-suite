@@ -77,6 +77,7 @@ class HudRepositoryUdpTest {
 
     @Test
     fun rapidRestartKeepsEachRecordingsMetadataAndSamples() = withReceiver {
+        backupUid = "alice"
         val firstSaveEntered = CompletableDeferred<Unit>()
         val releaseFirstSave = CompletableDeferred<Unit>()
         val queries = AtomicInteger()
@@ -110,6 +111,7 @@ class HudRepositoryUdpTest {
         firstSaveEntered.await()
         val firstId = owner.saveStatuses.value.keys.single()
         assertEquals(RecordingSaveStatus.Saving, owner.saveStatuses.value[firstId])
+        backupUid = "bob"
         val replacementHud = hud()
         assertFalse(hud.viewModelScope.coroutineContext.job.isActive)
         listener.send(350)
@@ -134,6 +136,8 @@ class HudRepositoryUdpTest {
         val sessions = analysis.getAllSessions().first { it.size == 2 }
         val first = sessions.last()
         assertEquals(firstId, first.id)
+        assertTrue(first.remoteStorageUrl?.startsWith("users/alice/sessions/") == true)
+        assertTrue(second.remoteStorageUrl?.startsWith("users/bob/sessions/") == true)
         owner.saveStatuses.first { it[firstId] == RecordingSaveStatus.Saved && it[second.id] == RecordingSaveStatus.Saved }
         assertEquals(second.id, sessions.first().id)
         assertEquals("2001 Make A (First)", first.vehicleId)
@@ -325,7 +329,8 @@ class HudRepositoryUdpTest {
         val hudStore = ViewModelStore()
         val trackStore = ViewModelStore()
         private val database = getRoomDatabase(Room.inMemoryDatabaseBuilder<AppDatabase>())
-        val analysis = AnalysisRepository(database)
+        @Volatile var backupUid: String? = null
+        val analysis = AnalysisRepository(database) { backupUid }
         val garage = GarageRepository(database.carDao())
         val trackDao = database.trackDao()
         val notifier = FakeRecordingNotifier()

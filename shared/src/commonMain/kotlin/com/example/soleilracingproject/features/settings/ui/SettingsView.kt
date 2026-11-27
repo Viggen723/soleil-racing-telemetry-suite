@@ -17,14 +17,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.soleilracingproject.features.loginpage.viewmodel.LoginpageViewmodel
 import com.example.soleilracingproject.features.settings.viewmodel.SettingsViewModel
 import com.example.soleilracingproject.util.tools.ConversionTools.formatOneDecimal
 
 @Composable
-fun SettingsView(viewModel: SettingsViewModel, modifier: Modifier = Modifier) {
+fun SettingsView(
+    viewModel: SettingsViewModel,
+    loginViewModel: LoginpageViewmodel,
+    modifier: Modifier = Modifier,
+) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
+    val isLoggingOut by loginViewModel.isLoggingOut.collectAsStateWithLifecycle()
+    val logoutError by loginViewModel.logoutError.collectAsStateWithLifecycle()
     val unit = settings.speedUnit
     val minimum = unit.fromMph(AppSettings.speedometerRange.start)
     val maximum = unit.fromMph(AppSettings.speedometerRange.endInclusive)
@@ -32,6 +39,7 @@ fun SettingsView(viewModel: SettingsViewModel, modifier: Modifier = Modifier) {
     // Only the unsaved dialog text lives here; Room owns the actual preferences.
     var draft by rememberSaveable { mutableStateOf("") }
     var confirmDisable by rememberSaveable { mutableStateOf(false) }
+    var confirmLogout by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -85,6 +93,39 @@ fun SettingsView(viewModel: SettingsViewModel, modifier: Modifier = Modifier) {
         if (error != null && editing == null && !confirmDisable) {
             Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
         }
+        Button(
+            onClick = {
+                loginViewModel.clearLogoutError()
+                confirmLogout = true
+            },
+            enabled = !isLoggingOut,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
+            ),
+        ) { Text("Log Out") }
+    }
+
+    if (confirmLogout) {
+        AlertDialog(
+            onDismissRequest = { if (!isLoggingOut) confirmLogout = false },
+            title = { Text("Log Out") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(if (isLoggingOut) "Logging out…" else "Are you sure you want to log out?")
+                    logoutError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !isLoggingOut, onClick = loginViewModel::logout) {
+                    Text("Log Out")
+                }
+            },
+            dismissButton = {
+                TextButton(enabled = !isLoggingOut, onClick = { confirmLogout = false }) { Text("Cancel") }
+            },
+        )
     }
 
     if (editing != null) {

@@ -7,27 +7,35 @@ import dev.gitlive.firebase.auth.auth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class LoginpageRepository {
+interface LoginAuthentication {
+    val currentUserId: String?
+    val userIdChanges: Flow<String?>
+    suspend fun login(email: String, pass: String): FirebaseUser?
+    suspend fun register(email: String, pass: String): FirebaseUser?
+    suspend fun logout()
+}
+
+class LoginpageRepository : LoginAuthentication {
 
     private val auth: FirebaseAuth
         get() = Firebase.auth
 
-    val currentUserFlow: Flow<FirebaseUser?> = auth.authStateChanged
+    override val userIdChanges: Flow<String?> = auth.authStateChanged.map { it?.uid }
 
-    val currentUser: FirebaseUser?
-        get() = auth.currentUser
+    override val currentUserId: String?
+        get() = auth.currentUser?.uid
 
-    suspend fun login(email: String, pass: String): FirebaseUser? {
+    override suspend fun login(email: String, pass: String): FirebaseUser? {
         val result = auth.signInWithEmailAndPassword(email, pass)
         return result.user
     }
 
-    suspend fun register(email: String, pass: String): FirebaseUser? {
+    override suspend fun register(email: String, pass: String): FirebaseUser? {
         val result = auth.createUserWithEmailAndPassword(email, pass)
         return result.user
     }
 
-    suspend fun logout() {
+    override suspend fun logout() {
         auth.signOut()
     }
 }

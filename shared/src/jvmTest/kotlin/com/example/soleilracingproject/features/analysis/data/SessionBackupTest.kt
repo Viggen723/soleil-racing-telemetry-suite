@@ -19,6 +19,7 @@ import java.nio.file.Files
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.job
@@ -135,8 +136,12 @@ class SessionBackupTest {
 
             val owned = sampleSession("owned-by-alice")
             fixture.local.addSession(owned)
+            val delayedOwner = fixture.local.captureBackupOwner()
+            account.uid.value = null
+            withTimeout(10_000) { cloud.statuses.first { it.isEmpty() } }
             account.uid.value = "bob"
             fixture.remote.online = true
+            fixture.local.addSession(sampleSession("delayed-alice-save"), delayedOwner)
             fixture.local.addSession(sampleSession("owned-by-bob"))
             fixture.waitForConfirmation("owned-by-bob")
             assertNull(cloud.readBackedUpSession(orphan.id))
@@ -148,7 +153,47 @@ class SessionBackupTest {
             account.uid.value = "alice"
             fixture.waitForConfirmation(orphan.id)
             fixture.waitForConfirmation(owned.id)
+            fixture.waitForConfirmation("delayed-alice-save")
             assertEquals(orphan, cloud.readBackedUpSession(orphan.id))
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun logoutCancelsInFlightUploadAndResumesOnlyForItsOwner() = runBlocking {
+        val fixture = Fixture()
+        val worker = fixture.start()
+        val enteredUpload = CompletableDeferred<Unit>()
+        val cancelledUpload = CompletableDeferred<Unit>()
+        val releaseUpload = CompletableDeferred<Unit>()
+        val session = sampleSession("in-flight")
+        try {
+            fixture.remote.beforeWrite = {
+                try {
+                    enteredUpload.complete(Unit)
+                    releaseUpload.await()
+                } finally {
+                    cancelledUpload.complete(Unit)
+                }
+            }
+            fixture.local.addSession(session)
+            withTimeout(10_000) { enteredUpload.await() }
+            fixture.account.uid.value = null
+            withTimeout(10_000) { cancelledUpload.await() }
+            assertTrue(fixture.remote.nodes.isEmpty())
+            assertFalse(fixture.local.getAllSessions().first().single().isSynced)
+
+            fixture.remote.beforeWrite = {}
+            fixture.account.uid.value = "bob"
+            fixture.local.addSession(sampleSession("bob"))
+            fixture.waitForConfirmation("bob")
+            assertNull(worker.readBackedUpSession(session.id))
+            assertTrue(fixture.remote.nodes.keys.all { it.startsWith("users/bob/") })
+
+            fixture.account.uid.value = "alice"
+            fixture.waitForConfirmation(session.id)
+            assertEquals(session, worker.readBackedUpSession(session.id))
         } finally {
             fixture.close()
         }
@@ -198,7 +243,7 @@ class SessionBackupTest {
             if (databasePath == null) Room.inMemoryDatabaseBuilder<AppDatabase>()
             else Room.databaseBuilder<AppDatabase>(databasePath)
         )
-        val local = AnalysisRepository(database) { id -> account.currentUid()?.let { SessionBackupFormat.path(it, id) } }
+        val local = AnalysisRepository(database, account::currentUid)
         private var worker: SessionBackupRepository? = null
 
         fun start() = SessionBackupRepository(local, account, remote, retryIntervalMs = 100).also { worker = it }
@@ -225,6 +270,7 @@ class SessionBackupTest {
         @Volatile var online = true
         @Volatile var failPathSuffix: String? = null
         @Volatile var loseMarkerAck = false
+        @Volatile var beforeWrite: suspend () -> Unit = {}
 
         override suspend fun awaitConnection() = online
 
@@ -234,6 +280,8 @@ class SessionBackupTest {
         }
 
         override suspend fun write(path: String, value: String) {
+            authorize(path)
+            beforeWrite()
             authorize(path)
             check(online && failPathSuffix?.let(path::endsWith) != true) { "Upload interrupted" }
             val previous = nodes.putIfAbsent(path, value)

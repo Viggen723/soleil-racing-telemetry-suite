@@ -62,7 +62,9 @@ class HudRepository(
         return garageRepository.getActiveCar()
     }
 
-    suspend fun saveSession(session: Session) {
-        analysisRepository.addSession(session)
+    internal fun captureBackupOwner() = analysisRepository.captureBackupOwner()
+
+    suspend fun saveSession(session: Session, ownerUid: String?) {
+        analysisRepository.addSession(session, ownerUid)
     }
 }

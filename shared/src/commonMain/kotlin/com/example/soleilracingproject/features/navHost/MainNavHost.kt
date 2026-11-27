@@ -13,7 +13,6 @@ import com.example.soleilracingproject.features.garage.ui.GarageView
 import com.example.soleilracingproject.features.garage.viewmodel.GarageViewmodel
 import com.example.soleilracingproject.features.hud.ui.HudView
 import com.example.soleilracingproject.features.hud.viewmodel.HudViewModel
-import com.example.soleilracingproject.features.loginpage.ui.LoginpageView
 import com.example.soleilracingproject.features.loginpage.viewmodel.LoginpageViewmodel
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.runtime.getValue
@@ -24,7 +23,7 @@ import com.example.soleilracingproject.features.settings.viewmodel.SettingsViewM
 @Composable
 fun MainNavHost(
     navHostController: NavHostController,
-    startDestination: Route = Route.Login,
+    loginViewModel: LoginpageViewmodel,
     onUpdateTopBarActions: ((@Composable RowScope.() -> Unit)?) -> Unit = {},
     onFocusModeChange: (Boolean) -> Unit = {},
     onRecordingTimeChange: (Long) -> Unit = {},
@@ -39,32 +38,16 @@ fun MainNavHost(
 
     NavHost(
         navController = navHostController,
-        startDestination = startDestination,
+        startDestination = Route.Hud,
         modifier = modifier
     ) {
-        composable<Route.Login> {
-            val loginViewModel: LoginpageViewmodel = koinViewModel()
-            LaunchedEffect(Unit) {
-                onUpdateTopBarActions(null)
-                onFocusModeChange(false)
-            }
-            LoginpageView(
-                viewModel = loginViewModel,
-                onNavigateSuccess = {
-                    navHostController.navigate(Route.Hud) {
-                        popUpTo(Route.Login) { inclusive = true }
-                    }
-                }
-            )
-        }
-
         composable<Route.Settings> {
             val settingsViewModel: SettingsViewModel = koinViewModel()
             LaunchedEffect(Unit) {
                 onUpdateTopBarActions(null)
                 onFocusModeChange(false)
             }
-            SettingsView(settingsViewModel)
+            SettingsView(settingsViewModel, loginViewModel)
         }
         composable<Route.Hud> {
             HudView(

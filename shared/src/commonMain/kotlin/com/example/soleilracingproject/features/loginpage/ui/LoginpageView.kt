@@ -40,7 +40,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.LaunchedEffect
 import com.example.soleilracingproject.features.loginpage.viewmodel.LoginpageViewmodel
 import org.jetbrains.compose.resources.painterResource
 import soleilracingproject.shared.generated.resources.Res
@@ -55,19 +54,9 @@ private enum class AuthView {
 }
 
 @Composable
-fun LoginpageView(
-    viewModel: LoginpageViewmodel,
-    onNavigateSuccess: () -> Unit = {}
-) {
-    val isAuthenticated by viewModel.isAuthenticated.collectAsStateWithLifecycle()
+fun LoginpageView(viewModel: LoginpageViewmodel) {
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
-
-    LaunchedEffect(isAuthenticated) {
-        if (isAuthenticated) {
-            onNavigateSuccess()
-        }
-    }
 
     var authView by remember { mutableStateOf(AuthView.LANDING) }
     var emailLogin by remember { mutableStateOf("") }

@@ -2,6 +2,7 @@ package com.example.soleilracingproject.features.analysis.data
 
 import androidx.room3.withWriteTransaction
 import com.example.soleilracingproject.data.local.AppDatabase
+import com.example.soleilracingproject.features.analysis.data.backup.SessionBackupFormat
 import com.example.soleilracingproject.data.mapper.toDomain
 import com.example.soleilracingproject.data.mapper.toEntity
 import com.example.soleilracingproject.model.analysis.Lap
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.map
 
 class AnalysisRepository(
     private val database: AppDatabase,
-    private val backupPath: (String) -> String? = { null },
+    private val backupOwnerUid: () -> String? = { null },
 ) {
     private val sessionDao = database.sessionDao()
     private val lapDao = database.lapDao()
@@ -55,10 +56,14 @@ class AnalysisRepository(
 
     internal suspend fun confirmBackup(id: String, path: String) = sessionDao.confirmBackup(id, path)
 
-    suspend fun addSession(session: Session) = database.withWriteTransaction {
+    internal fun captureBackupOwner() = backupOwnerUid()
+
+    suspend fun addSession(session: Session, ownerUid: String? = captureBackupOwner()) = database.withWriteTransaction {
         val previous = sessionDao.getSessionEntity(session.id)
         sessionDao.insertSession(session.toEntity().copy(
-            remoteStorageUrl = previous?.remoteStorageUrl ?: backupPath(session.id),
+            remoteStorageUrl = previous?.remoteStorageUrl ?: ownerUid?.let {
+                runCatching { SessionBackupFormat.path(it, session.id) }.getOrNull()
+            },
             isSynced = previous?.isSynced ?: false,
         ))
 

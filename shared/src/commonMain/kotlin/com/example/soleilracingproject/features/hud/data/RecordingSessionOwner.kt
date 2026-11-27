@@ -51,6 +51,7 @@ enum class RecordingState {
 
 private data class RecordingSnapshot(
     val sessionId: String,
+    val backupOwnerUid: String?,
     val startedAt: Long,
     val title: String,
     val points: List<TelemetryPoint>,
@@ -93,6 +94,7 @@ class RecordingSessionOwner(
     private val allRecordedSessionPoints = mutableListOf<TelemetryPoint>()
     private val completedLaps = mutableListOf<Lap>()
     private var sessionStartTime: Long = 0L
+    private var backupOwnerUid: String? = null
     private val _activeRecordingId = MutableStateFlow<String?>(null)
     val activeRecordingId = _activeRecordingId.asStateFlow()
     private var previousPoint: TelemetryPoint? = null
@@ -166,6 +168,7 @@ class RecordingSessionOwner(
         lapStartTimeMs = null
         detectedGate = null
         sessionStartTime = kotlin.time.Clock.System.now().toEpochMilliseconds()
+        backupOwnerUid = hudRepository.captureBackupOwner()
         startTimer()
         _activeRecordingId.value = "session_${Random.nextLong().toString(16)}"
         _isRecording.value = true
@@ -191,6 +194,7 @@ class RecordingSessionOwner(
         }?.ifBlank { null } ?: "Recorded Vehicle"
         val snapshot = RecordingSnapshot(
             sessionId = sessionId,
+            backupOwnerUid = backupOwnerUid,
             startedAt = sessionStartTime,
             title = formatRecordedSessionTitle(sessionStartTime),
             points = allRecordedSessionPoints.toList(),
@@ -218,6 +222,7 @@ class RecordingSessionOwner(
     private fun resetCapture() {
         captureJob?.cancel()
         captureJob = null
+        backupOwnerUid = null
         stopTimer()
         allRecordedSessionPoints.clear()
         activeLapBuffer.clear()
@@ -281,7 +286,7 @@ class RecordingSessionOwner(
             isSynced = false,
             laps = laps,
         )
-        hudRepository.saveSession(session)
+        hudRepository.saveSession(session, snapshot.backupOwnerUid)
     }
 
     private fun hasCrossedGpsGate(point: TelemetryPoint): Boolean {

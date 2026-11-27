@@ -50,6 +50,7 @@ class AnalysisViewModel(
         )
 
     fun loadCsvSession(fileName: String, csvContent: String) {
+        val ownerUid = repository?.captureBackupOwner()
         viewModelScope.launch(Dispatchers.IO) {
             val parsedPoints = CsvTelemetryParser.parse(csvContent)
 
@@ -97,7 +98,7 @@ class AnalysisViewModel(
                 laps = laps,
             )
 
-            insertSession(newSession)
+            insertSession(newSession, ownerUid)
         }
     }
 
@@ -123,9 +124,9 @@ class AnalysisViewModel(
         }
     }
 
-    fun insertSession(session: Session) {
+    fun insertSession(session: Session, ownerUid: String? = repository?.captureBackupOwner()) {
         viewModelScope.launch {
-            repository?.addSession(session)
+            repository?.addSession(session, ownerUid)
         }
     }
 }
